@@ -33,6 +33,11 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
         <div className="col g20" style={{ maxWidth: 620 }}>
           <h1 className="hero">The coach that learns any sport you show it.</h1>
           <p className="lede">Upload a video or a workout from your watch. If it's a sport I haven't seen, I learn it, and from then on every member can use it.</p>
+          <ol className="auth-steps">
+            <li><span className="how-n">1</span><span>Show me a workout.</span></li>
+            <li><span className="how-n">2</span><span>I name the sport, or learn it live.</span></li>
+            <li><span className="how-n">3</span><span>I coach you, and the next member gets it free.</span></li>
+          </ol>
         </div>
         <div className="row g28 muted t15"><span>Any sport</span><span>·</span><span>Learns once, for everyone</span><span>·</span><span>Asks before learning</span></div>
       </div>

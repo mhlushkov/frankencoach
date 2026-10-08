@@ -1,6 +1,7 @@
 import { Badge, Logo } from './lib/Frame'
 import { initials, signOut, type User } from './lib/account'
 import { go } from './lib/route'
+import { openHowItWorks } from './coach/HowItWorks'
 
 const PLAN_COLOR = { PRO: 'var(--fc-alive)', BASIC: 'var(--fc-human)', TRIAL: 'var(--fc-learn)' }
 
@@ -13,6 +14,7 @@ export function Header({ user, crumb, tagline }: { user: User; crumb?: string; t
       {tagline && <span className="muted t15">{tagline}</span>}
       {crumb && <span className="muted t15">{crumb}</span>}
       <div className="topbar-right">
+        <a className="t14" href="#/" onClick={openHowItWorks}>How it works</a>
         {user.owner && <a className="t14" href="#/owner">Owner dashboard</a>}
         <Badge label={user.owner ? 'OWNER' : user.plan} color={user.owner ? 'var(--fc-learn)' : PLAN_COLOR[user.plan]} />
         <div className="avatar">{initials(user.name)}</div>

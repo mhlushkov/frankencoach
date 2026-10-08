@@ -7,6 +7,7 @@ import { Header } from '../Header'
 import { useUi } from '../UiContext'
 import { addChat, bodySummary, dayLabel, useAccount, type User } from '../lib/account'
 import { Conversation, type Choice } from './Conversation'
+import { HowItWorks, useHowItWorks } from './HowItWorks'
 import { sportName } from '../lib/text'
 import { SportsFooter } from './SportsFooter'
 import { Workout, type Media } from './Workout'
@@ -37,6 +38,7 @@ export function CoachScreen({ user }: { user: User }) {
   useEffect(() => () => { if (media?.kind === 'video') URL.revokeObjectURL(media.url) }, [media])
 
   const busy = working || !selectors.canSend(state)
+  const showHow = useHowItWorks(state.messages.length)
 
   async function onFile(file: File) {
     setFileError('')
@@ -165,6 +167,7 @@ export function CoachScreen({ user }: { user: User }) {
             <span className="live-dot" style={{ background: status.color }} />
             <span className="muted t14">{status.live}</span>
           </div>
+          {showHow && <HowItWorks />}
           <Conversation state={state} choice={choice} working={working} onLearn={learn} onDecline={decline} />
           <div className="composer">
             <textarea className="input" aria-label="Ask your coach" placeholder="Ask your coach…" value={text} onChange={(e) => setText(e.target.value)}

@@ -19,10 +19,10 @@ const SEED: User[] = [
   { id: 'daniel', name: 'Daniel Kim', email: 'owner@frankencoach.app', plan: 'PRO', owner: true, since: 'January 2026', baseChats: 0, lastActive: 'Today' },
 ]
 
-function read<T>(key: string, fallback: T): T {
+export function read<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T) : fallback } catch { return fallback }
 }
-function write(key: string, value: unknown) {
+export function write(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* private mode: state lives for this tab only */ }
 }
 

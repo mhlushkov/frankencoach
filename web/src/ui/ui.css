@@ -143,4 +143,36 @@
 .sport.learning { border: 1px dashed rgba(255, 178, 62, 0.6); animation: var(--fc-pulse); }
 .sport-name { font: 600 19px/1.1 var(--font-heading); white-space: nowrap; }
 
+/* how this works (first visit) */
+.how-wrap { flex: none; max-height: 64%; overflow: auto; padding: 18px 24px 6px; }
+.how { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; background: var(--color-surface); }
+.how-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.how-steps li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; align-items: start; line-height: 1.4; }
+.how-n { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid var(--fc-alive); color: var(--fc-alive); font: 600 14px/1 var(--font-heading); }
+.how-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding-top: 14px; border-top: 1px solid var(--color-divider); }
+.how-later { background: none; border: 0; padding: 0; color: var(--fc-human); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-family: var(--font-body); }
+.how-later:hover { color: var(--color-text); }
+.auth-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.auth-steps li { display: flex; align-items: flex-start; gap: 10px; font-size: 16px; line-height: 1.35; color: var(--color-text-2); }
+.auth-steps .how-n { flex: none; }
+
+@media (max-width: 720px) {
+  .topbar { height: auto; min-height: 60px; flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
+  .topbar-right { flex-wrap: wrap; gap: 10px; }
+  .topbar > .muted, .user-name { display: none; }
+  .auth { grid-template-columns: 1fr; overflow: auto; }
+  .auth-hero { border-right: 0; padding: 28px 16px; gap: 24px; }
+  .hero { font-size: 44px; }
+  .auth-steps { grid-template-columns: 1fr; gap: 10px; }
+  .auth-form { padding: 24px 16px 40px; overflow: visible; }
+  .coach-grid { grid-template-columns: 1fr; overflow: auto; }
+  .history { display: none; }
+  .left { min-height: 420px; padding: 16px; }
+  .right { border-left: 0; border-top: 1px solid var(--color-divider); min-height: 560px; }
+  .how-wrap { max-height: none; padding: 16px 16px 6px; }
+  .how { padding: 16px; }
+  .composer, .log, .right-head { padding-left: 16px; padding-right: 16px; }
+  .sports { height: auto; padding: 10px 16px; flex-wrap: wrap; gap: 8px; }
+}
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
