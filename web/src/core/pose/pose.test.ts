@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { BONES, frameAt } from './skeleton'
+import { BONES, frameAt, frameLerp } from './skeleton'
 import { sha256 } from './hash'
 import { createLandmarkCache } from './cache'
 import { betterPass, landmarkQuality, mapFromCrop, needsSecondPass, personCropBox } from './crop'
@@ -92,4 +92,31 @@ test('the pass with higher mean visibility wins', () => {
   expect(betterPass(a, b)).toBe(b)
   expect(betterPass(b, a)).toBe(b)
   expect(betterPass(a, a)).toBe(a)
+})
+
+test('frameLerp interpolates between two frames and falls back to frameAt next to a null frame', () => {
+  const pt = (x: number, visibility: number) => ({ x, y: x / 2, z: x / 4, visibility })
+  const l: Landmarks = {
+    ...lm,
+    frames: [
+      { t: 0, landmarks: [pt(0.2, 0.9), pt(0.4, 0.5)] },
+      { t: 0.1, landmarks: [pt(0.4, 0.6), pt(0.6, 0.8)] },
+      { t: 0.2, landmarks: null },
+      { t: 0.3, landmarks: [pt(0.5, 0.9), pt(0.5, 0.9)] },
+    ],
+  }
+  const mid = frameLerp(l, 0.05)!
+  expect(mid.t).toBe(0.05)
+  expect(r6(mid.landmarks![0].x)).toBe(0.3)
+  expect(r6(mid.landmarks![0].y)).toBe(0.15)
+  expect(r6(mid.landmarks![0].z)).toBe(0.075)
+  expect(mid.landmarks![0].visibility).toBe(0.6)
+  expect(mid.landmarks![1].visibility).toBe(0.5)
+  expect(r6(frameLerp(l, 0.075)!.landmarks![1].x)).toBe(0.55)
+  expect(frameLerp(l, 0.12)).toBe(frameAt(l, 0.12))      // next to the null frame
+  expect(frameLerp(l, 0.26)).toBe(l.frames[3])
+  expect(frameLerp(l, 0.1)).toBe(l.frames[1])            // exactly on a frame
+  expect(frameLerp(l, -1)).toBe(l.frames[0])              // outside the clip
+  expect(frameLerp(l, 9)).toBe(l.frames[3])
+  expect(frameLerp({ ...l, frames: [] }, 0)).toBeUndefined()
 })
