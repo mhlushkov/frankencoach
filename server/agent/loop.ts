@@ -24,6 +24,7 @@ export interface GrowArgs {
   need: GrowNeed;
   evidence: { sampleStats?: Record<string, unknown>; head30?: string; filename?: string };
   userMessage: string;
+  realInput?: ToolInput;
 }
 export interface GrowResult { ok: boolean; manifest?: ToolManifest }
 
@@ -154,6 +155,7 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
   const chain: ChainStep[] = plan(input, { activity, formatId }, deps.registry.find);
   yield { type: 'plan', chain };
   const grownHere = new Set<string>();
+  const initial: ToolInput = input.kind === 'landmarks' ? input.landmarks : { raw: input.text, filename: input.filename };
 
   // 5. missing capability → one confirmation for the whole chain
   const missing = chain.map((s, i) => [s, i] as const).filter(([s]) => s.missing);
@@ -175,9 +177,14 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
       let ok = false;
       if (allowed && !budget.exceeded) {
         const kind: ToolKind = step.step === 'parse' ? 'parser' : 'analyzer';
+        // acceptance input = what step 6 will feed this step: the raw input, or the session a preceding parser makes of it
+        let realInput: ToolInput | undefined = initial;
+        if (i > 0 && chain[i - 1].step === 'parse' && chain[i - 1].tool) {
+          try { realInput = (await deps.runTool(chain[i - 1].tool!, initial)) as Session; } catch { realInput = undefined; }
+        }
         const ch = channel<AgentEvent>();
         const p = deps.grow(
-          { need: { kind, inputType: step.inputType, activity: step.activity, formatId }, evidence: { sampleStats, head30, filename: input.kind === 'file' ? input.filename : undefined }, userMessage: req.message },
+          { need: { kind, inputType: step.inputType, activity: step.activity, formatId }, evidence: { sampleStats, head30, filename: input.kind === 'file' ? input.filename : undefined }, userMessage: req.message, realInput },
           { emit: (e) => ch.push(e), budget, stepIndex: i },
         ).then((r) => { ch.close(); return r; }, (err) => { ch.close(); throw err; });
         for await (const e of ch.drain()) yield withStep(e, i);
@@ -205,7 +212,7 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
   }
 
   // 6. run the chain (subprocess per tool; never import())
-  let current: ToolInput = input.kind === 'landmarks' ? input.landmarks : { raw: input.text, filename: input.filename };
+  let current: ToolInput = initial;
   let result: ToolResult | undefined;
   for (let i = 0; i < chain.length; i++) {
     const step = chain[i];

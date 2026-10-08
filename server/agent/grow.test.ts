@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { AgentEvent, ToolManifest } from '../../contracts/types';
+import type { AgentEvent, Landmarks, Session, ToolManifest, ToolResult } from '../../contracts/types';
 import { Budget } from './cost';
 import type { LlmRequest, LlmResponse } from './llm';
 import { find, install, list } from './registry';
-import { runToolTests } from './runner';
+import { runToolTests, type ToolInput } from './runner';
 import { growTool, toolName, type GrowDeps } from './grow';
 
 const FIX = join(import.meta.dir, '__fixtures__');
@@ -233,5 +233,117 @@ describe('growTool', () => {
     await growTool(analyzerArgs, d);
     expect(logged).toHaveLength(1);
     expect(logged[0]).toMatchObject({ sessionId: 's1', step: 'grow', usd: 0.05, model: 'fake-strong', data: { name: 'freediving-technique', attempts: 1 } });
+  });
+});
+
+describe('growTool acceptance on the real input', () => {
+  const landmarks: Landmarks = { version: 1, source: 'synthetic', videoHash: 'h', width: 1, height: 1, durationSec: 1, fps: 1, frames: [] };
+  /** Fake acceptance runner: replays results (or throws Error values) in order, records every call. */
+  function fakeReal(results: (ToolResult | Session | Error)[]) {
+    const calls: { name: string; input: ToolInput }[] = [];
+    const runReal = async (name: string, input: ToolInput) => {
+      calls.push({ name, input });
+      const r = results[Math.min(calls.length - 1, results.length - 1)]!;
+      if (r instanceof Error) throw r;
+      return r;
+    };
+    return { runReal, calls };
+  }
+  const realArgs = { ...analyzerArgs, realInput: landmarks };
+  const testResults = (events: AgentEvent[]) => events.filter((e) => e.type === 'test_result') as Extract<AgentEvent, { type: 'test_result' }>[];
+
+  test('(a) usable:false on attempt 1 → feedback with the warning, attempt 2 accepted → installed with attempts:2', async () => {
+    const { llm, calls } = fakeLlm([goodAnalyzer]);
+    const { run } = fakeRun([{ pass: true, summary: '3 pass' }]);
+    const { runReal, calls: real } = fakeReal([
+      { metrics: {}, usable: false, warnings: ['jump rope pattern not found (no regular vertical jumping)'] },
+      { metrics: { jumps: 40, cadenceHz: 2.1 }, usable: true },
+    ]);
+    const d = deps({ llm, run, runReal });
+    const r = await growTool(realArgs, d);
+
+    expect(r.ok).toBe(true);
+    expect(r.manifest?.attempts).toBe(2);
+    expect(r.manifest?.costUsd).toBeCloseTo(0.1);
+    expect(real).toHaveLength(2);
+    expect(real[0]).toEqual({ name: 'freediving-technique', input: landmarks });
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.user).toContain('Acceptance on the real input failed');
+    expect(calls[1]!.user).toContain('jump rope pattern not found (no regular vertical jumping)');
+    expect(calls[1]!.user).toContain('This input IS freediving');
+    expect(calls[1]!.user).toContain('"fps": 10');
+    const tr = testResults(d.events);
+    expect(tr.map((t) => [t.attempt, t.pass])).toEqual([[1, true], [1, false], [2, true], [2, true]]);
+    expect(tr[1]!.summary).toStartWith('real input:');
+    expect(tr[1]!.summary).toContain('jump rope pattern not found');
+    expect(tr[3]!.summary).toBe('real input: usable, 2 metrics');
+    expect(find({ kind: 'analyzer', inputType: 'landmarks', activity: 'freediving' }, root)?.name).toBe('freediving-technique');
+  });
+
+  test('(b) accepted first time → installed, one passing "real input" test_result', async () => {
+    const { llm } = fakeLlm([goodAnalyzer]);
+    const { run } = fakeRun([{ pass: true, summary: '3 pass' }]);
+    const { runReal } = fakeReal([{ metrics: { a: 1, b: 2, c: 3 }, usable: true }]);
+    const d = deps({ llm, run, runReal });
+    const r = await growTool(realArgs, d);
+
+    expect(r.ok).toBe(true);
+    expect(r.manifest?.attempts).toBe(1);
+    expect(types(d.events)).toEqual(['growing', 'cost', 'test_result', 'test_result', 'authority_check', 'tool_installed']);
+    const real = testResults(d.events).filter((t) => t.summary.startsWith('real input'));
+    expect(real).toHaveLength(1);
+    expect(real[0]).toMatchObject({ pass: true, attempt: 1, summary: 'real input: usable, 3 metrics' });
+  });
+
+  test('(c) runReal throws → failed attempt, error message in the feedback; budget spent → ok:false', async () => {
+    const { llm, calls } = fakeLlm([goodAnalyzer]);
+    const { run } = fakeRun([{ pass: true, summary: '3 pass' }]);
+    const { runReal, calls: real } = fakeReal([new Error('timeout')]);
+    const d = deps({ llm, run, runReal });
+    const r = await growTool(realArgs, d);
+
+    expect(r.ok).toBe(false);
+    expect(calls).toHaveLength(3);
+    expect(real).toHaveLength(3);
+    expect(calls[1]!.user).toContain('Acceptance on the real input failed');
+    expect(calls[1]!.user).toContain('threw: timeout');
+    const failed = testResults(d.events).filter((t) => !t.pass);
+    expect(failed).toHaveLength(3);
+    expect(failed[0]!.summary).toBe('real input: threw: timeout');
+    expect(d.events.some((e) => e.type === 'tool_installed')).toBe(false);
+    expect(existsSync(join(root, 'tools', 'freediving-technique'))).toBe(false);
+    expect(list(root).map((t) => t.name).sort()).toEqual(['pose-metrics', 'series-core']);
+  });
+
+  test('(d) no realInput → runReal never called, events unchanged', async () => {
+    const { llm } = fakeLlm([goodAnalyzer]);
+    const { run } = fakeRun([{ pass: true, summary: '3 pass' }]);
+    const { runReal, calls: real } = fakeReal([{ metrics: {}, usable: false }]);
+    const d = deps({ llm, run, runReal });
+    const r = await growTool(analyzerArgs, d);
+    expect(r.ok).toBe(true);
+    expect(real).toHaveLength(0);
+    expect(types(d.events)).toEqual(['growing', 'cost', 'test_result', 'authority_check', 'tool_installed']);
+  });
+
+  test('parser: empty session rejected with head30 in the feedback; non-empty session accepted', async () => {
+    const { llm, calls } = fakeLlm([goodParser]);
+    const { run } = fakeRun([{ pass: true, summary: '3 pass' }]);
+    const raw = { raw: 'timestamp,depth_m\n0,0', filename: 'dive.csv' };
+    const { runReal, calls: real } = fakeReal([
+      { version: 1, source: 'garmin-dive-csv', durationSec: 0, series: {}, meta: {} },
+      { version: 1, source: 'garmin-dive-csv', durationSec: 90, series: { depth_m: { t: [0], v: [0] }, heart_rate_bpm: { t: [0], v: [70] } }, meta: {} },
+    ]);
+    const d = deps({ llm, run, runReal });
+    const r = await growTool({ ...parserArgs, realInput: raw }, d);
+
+    expect(r.ok).toBe(true);
+    expect(r.manifest?.attempts).toBe(2);
+    expect(real[0]!.input).toEqual(raw);
+    expect(calls[1]!.user).toContain('Acceptance on the real input failed');
+    expect(calls[1]!.user).toContain('timestamp,depth_m,heart_rate_bpm,temp_c');
+    const tr = testResults(d.events).filter((t) => t.summary.startsWith('real input'));
+    expect(tr.map((t) => t.pass)).toEqual([false, true]);
+    expect(tr[1]!.summary).toBe('real input: session 90s, series depth_m,heart_rate_bpm');
   });
 });

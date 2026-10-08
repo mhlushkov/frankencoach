@@ -112,6 +112,7 @@ export async function makeRealDeps(): Promise<AppDeps> {
       canonicalize: (a) => reuse.canonicalize(a, root),
       grow: (args, ctx) => grow.growTool(args, {
         llm: (r: any) => llmMod.callLlm(r, llmDeps), run: (name: string) => runnerMod.runToolTests(name, { root, timeoutMs: authority.testTimeoutMs }),
+        runReal: (name: string, input: any) => runnerMod.runTool(name, input, { root }),
         root, emit: ctx.emit, budget: ctx.budget, stepIndex: ctx.stepIndex,
       }),
       runTool: (name, input) => runnerMod.runTool(name, input, { root }),

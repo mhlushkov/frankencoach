@@ -171,6 +171,14 @@ describe('analyze loop', () => {
     expect(types(ev)).toContain('answer');
   });
 
+  test('growth receives the landmarks as realInput for an analyzer step', async () => {
+    const { deps } = fakeDeps([poseMetrics], { activity: 'kitesurfing' });
+    const seen: unknown[] = [];
+    deps.grow = async (args) => { seen.push(args.realInput); return { ok: false }; };
+    await collect({ sessionId: 's6b', message: 'check this', confirmGrow: true, input: { kind: 'landmarks', landmarks: squat as Landmarks } }, deps);
+    expect(seen).toEqual([squat]);
+  });
+
   test('usable:false → rejected not_a_sport, no answer', async () => {
     const { deps } = fakeDeps([poseMetrics, squatTool]);
     deps.runTool = async () => ({ metrics: {}, usable: false, warnings: ['no squat pattern'] });

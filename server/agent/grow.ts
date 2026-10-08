@@ -2,25 +2,30 @@
 // Authority never changes (contracts/authority.json); growth is never served from the LLM cache.
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AgentEvent, ToolInputType, ToolKind, ToolManifest } from '../../contracts/types';
+import type { AgentEvent, Session, ToolInputType, ToolKind, ToolManifest, ToolResult } from '../../contracts/types';
 import authority from '../../contracts/authority.json';
 import { checkAll } from './authority';
 import type { Budget } from './cost';
 import type { LlmRequest, LlmResponse } from './llm';
 import type { LogEntry } from './log';
 import { install, list } from './registry';
+import { runTool, type ToolInput } from './runner';
 
 export interface GrowNeed { kind: ToolKind; inputType: ToolInputType; activity: string; formatId?: string }
 export interface GrowArgs {
   need: GrowNeed;
   evidence: { sampleStats?: Record<string, unknown>; head30?: string; filename?: string };
   userMessage: string;
+  /** The exact input the step will be run with (landmarks, parsed session, or `{ raw, filename }`); the candidate must work on it. */
+  realInput?: ToolInput;
 }
 export interface GrowResult { ok: boolean; manifest?: ToolManifest }
 export interface GrowDeps {
   llm(req: LlmRequest): Promise<LlmResponse>;
   /** `bun test tools/<name>` in a subprocess (runner.runToolTests). */
   run(name: string): Promise<{ pass: boolean; summary: string }>;
+  /** Acceptance run on the real input (runner.runTool, same root/timeout as the loop's step 6). */
+  runReal?(name: string, input: ToolInput): Promise<ToolResult | Session>;
   root: string;
   emit(e: AgentEvent): void;
   budget: Budget;
@@ -65,21 +70,54 @@ function parseAnswer(json: unknown): { ok: true; value: ModelAnswer } | { ok: fa
   return { ok: true, value: a as ModelAnswer };
 }
 
-function userPrompt(args: GrowArgs, name: string, context: string, feedback: string | null): string {
+/** sampleStats (analyzer) or head30 (parser): shown in the first prompt and again after a failed acceptance run. */
+function evidenceBlock(args: GrowArgs, name: string): string | null {
   const { need, evidence } = args;
+  if (need.kind === 'parser') {
+    return `# Sample\nfilename: ${evidence.filename ?? '(unknown)'}\nformatId: ${need.formatId ?? name}\n\nFirst 30 lines:\n\`\`\`\n${evidence.head30 ?? ''}\n\`\`\``;
+  }
+  if (evidence.sampleStats) {
+    return `# Input statistics (from the validity gate)\n\`\`\`json\n${JSON.stringify(evidence.sampleStats, null, 2)}\n\`\`\``;
+  }
+  return null;
+}
+
+function userPrompt(args: GrowArgs, name: string, context: string, feedback: string | null): string {
+  const { need } = args;
   const parts: string[] = [
     `# Task\nWrite the ${need.kind} tool \`tools/${name}/\` (manifest.name = "${name}") for activity "${need.activity}", inputType "${need.inputType}", outputType "${need.kind === 'parser' ? 'session' : 'result'}".`,
     `# User request\n${args.userMessage}`,
   ];
-  if (need.kind === 'parser') {
-    parts.push(`# Sample\nfilename: ${evidence.filename ?? '(unknown)'}\nformatId: ${need.formatId ?? name}\n\nFirst 30 lines:\n\`\`\`\n${evidence.head30 ?? ''}\n\`\`\``);
-  } else if (evidence.sampleStats) {
-    parts.push(`# Input statistics (from the validity gate)\n\`\`\`json\n${JSON.stringify(evidence.sampleStats, null, 2)}\n\`\`\``);
-  }
+  const ev = evidenceBlock(args, name);
+  if (ev) parts.push(ev);
   parts.push(`# Context (contracts, example tool, available helpers)\n${context}`);
   if (feedback) parts.push(feedback);
   parts.push('Return JSON `{manifest, files:{"index.ts","index.test.ts"}}` only.');
   return parts.join('\n\n');
+}
+
+/** Acceptance on the real input: analyzer → usable:true; parser → durationSec > 0 and at least one series. */
+async function acceptReal(kind: ToolKind, name: string, input: ToolInput, runReal: NonNullable<GrowDeps['runReal']>):
+  Promise<{ pass: true; summary: string } | { pass: false; summary: string; problem: string }> {
+  let out: ToolResult | Session;
+  try {
+    out = await runReal(name, input);
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    return { pass: false, summary: `real input: threw: ${msg}`, problem: `threw: ${msg}` };
+  }
+  if (kind === 'parser') {
+    const s = out as Partial<Session> | null;
+    const series = Object.keys(s?.series ?? {});
+    const dur = typeof s?.durationSec === 'number' ? s.durationSec : 0;
+    if (dur > 0 && series.length) return { pass: true, summary: `real input: session ${dur}s, series ${series.join(',')}` };
+    const what = `an empty session (durationSec ${dur}, series: ${series.join(',') || 'none'})`;
+    return { pass: false, summary: `real input: ${what}`, problem: `returned ${what}` };
+  }
+  const r = out as Partial<ToolResult> | null;
+  if (r?.usable === true) return { pass: true, summary: `real input: usable, ${Object.keys(r.metrics ?? {}).length} metrics` };
+  const warn = (r?.warnings ?? []).join('; ') || '(none)';
+  return { pass: false, summary: `real input: usable:false, warnings: ${warn}`, problem: `returned usable:false with warnings: ${warn}` };
 }
 
 function moveToFailed(root: string, name: string): void {
@@ -156,6 +194,21 @@ export async function growTool(args: GrowArgs, deps: GrowDeps, stepIndexArg?: nu
     if (!t.pass) {
       feedback = `# Test output of the previous attempt (bun test tools/${name})\n\`\`\`\n${t.summary}\n\`\`\`\nFix the tool so this test output passes. Return full files again.`;
       continue;
+    }
+
+    // acceptance: the candidate must work on the input it was grown for
+    if (args.realInput !== undefined) {
+      const runReal = deps.runReal ?? ((n: string, i: ToolInput) => runTool(n, i, { root }));
+      const a = await acceptReal(need.kind, name, args.realInput, runReal);
+      emit({ type: 'test_result', name, attempt, pass: a.pass, summary: a.summary });
+      if (!a.pass) {
+        const ev = evidenceBlock(args, name);
+        feedback = [
+          `# Acceptance on the real input failed\nYour tests passed, but on the member's actual input (statistics / first lines below) the tool ${a.problem}.\nThis input IS ${need.activity}: the member said so and the classifier agreed. Your gate is too strict or you measure the wrong signal. Loosen thresholds to what real camera data looks like (MediaPipe jitter, partial visibility, pauses between reps, 10–30 s clips), keep garbage / no-person input → usable:false, keep your tests passing. Return full files again.`,
+          ...(ev ? [ev] : []),
+        ].join('\n\n');
+        continue;
+      }
     }
 
     // install
