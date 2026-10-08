@@ -1,0 +1,40 @@
+/* FrankenCoach night-lab tokens (from Claude Design: frankencoach-tokens.css, v4). Fonts are self-hosted in fonts.css. */
+:root {
+  --color-bg: #0a0c0d;
+  --color-surface: #121517;
+  --color-well: #0e1112;
+  --color-text: #e4e7e5;
+  --color-text-2: #c9cdcb;
+  --color-divider: rgba(228, 231, 229, 0.13);
+
+  --fc-alive: #39ff88;
+  --fc-alive-tint: rgba(57, 255, 136, 0.07);
+  --fc-fail: #ff5a52;
+  --fc-fail-tint: rgba(255, 90, 82, 0.08);
+  --fc-learn: #ffb23e;
+  --fc-learn-tint: rgba(255, 178, 62, 0.08);
+  --fc-human: #8b9296;
+
+  --color-accent: var(--fc-alive);
+  --color-accent-600: #2fd873;
+  --color-accent-700: #24a95a;
+
+  --font-heading: 'Barlow Condensed', system-ui, sans-serif;
+  --font-body: 'Barlow', system-ui, sans-serif;
+  --fc-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --space-1: 3.4px;
+  --space-2: 6.8px;
+  --space-3: 10.2px;
+  --space-4: 13.6px;
+  --space-6: 20.4px;
+  --space-8: 27.2px;
+
+  --fc-pulse: fcPulse 1.4s ease-in-out infinite;
+  --fc-birth: fcBirth 1.6s ease-out both;
+  --fc-scan: fcScan 1.3s ease-in-out infinite;
+}
+@keyframes fcPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 178, 62, 0); } 50% { box-shadow: 0 0 0 4px rgba(255, 178, 62, 0.18); } }
+@keyframes fcBirth { 0% { box-shadow: 0 0 0 0 rgba(57, 255, 136, 0.55); transform: scale(0.96); } 40% { box-shadow: 0 0 22px 4px rgba(57, 255, 136, 0.35); transform: scale(1.01); } 100% { box-shadow: 0 0 10px 0 rgba(57, 255, 136, 0.18); transform: scale(1); } }
+@keyframes fcScan { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+@keyframes fcBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
