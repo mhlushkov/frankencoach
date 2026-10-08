@@ -1,0 +1,51 @@
+/* Reset + the Industry-system primitives the design uses (blueprint frame, btn, input, seg, table), square and dark. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--color-bg); color: var(--color-text); font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+/* index.css (Vite template, core-owned) centres #root at 1126px; the app needs the full viewport. */
+#root { width: 100%; max-width: none; margin: 0; border: 0; text-align: left; min-height: 100vh; height: 100vh; display: flex; flex-direction: column; }
+h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: 600; letter-spacing: normal; color: var(--color-text); margin: 0; line-height: 1.12; }
+p { margin: 0; }
+a { color: var(--fc-alive); text-decoration: none; cursor: pointer; }
+a:hover { color: #8dffbc; }
+button { font: inherit; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--fc-alive); outline-offset: 2px; }
+::selection { background: rgba(57, 255, 136, 0.3); }
+
+.blueprint { position: relative; border: 1px solid var(--color-divider); }
+.blueprint > .corner { position: absolute; width: 11px; height: 11px; color: rgba(228, 231, 229, 0.55); }
+.blueprint > .corner::before, .blueprint > .corner::after { content: ''; position: absolute; background: currentColor; }
+.blueprint > .corner::before { left: 5px; top: 0; width: 1px; height: 100%; }
+.blueprint > .corner::after { top: 5px; left: 0; width: 100%; height: 1px; }
+.blueprint > .corner.tl { top: -6px; left: -6px; }
+.blueprint > .corner.tr { top: -6px; right: -6px; }
+.blueprint > .corner.bl { bottom: -6px; left: -6px; }
+.blueprint > .corner.br { bottom: -6px; right: -6px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font: 600 15px/1.2 var(--font-heading); color: var(--color-text); background: transparent; border: 1px solid var(--color-divider); padding: 8px 14px; border-radius: 0; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--fc-alive); color: #0a0c0d; border-color: var(--fc-alive); }
+.btn-primary:hover:not(:disabled) { background: var(--color-accent-600); }
+.btn-primary:active:not(:disabled) { background: var(--color-accent-700); }
+.btn-secondary:hover:not(:disabled) { background: rgba(228, 231, 229, 0.07); }
+.btn-lg { height: 46px; font-size: 17px; padding: 0 28px; }
+
+.field > label { display: block; font-size: 14px; margin-bottom: 5px; color: rgba(228, 231, 229, 0.7); }
+.field .opt { color: var(--fc-human); }
+.input { width: 100%; min-height: 36px; padding: 6px 10px; font: inherit; font-size: 15px; color: var(--color-text); caret-color: var(--fc-alive); background: var(--color-well); border: 1px solid var(--color-divider); border-radius: 0; }
+.input:hover { border-color: rgba(228, 231, 229, 0.45); }
+.input:focus-visible { border-color: var(--fc-alive); outline-offset: 0; }
+.input.lg { height: 44px; }
+textarea.input { min-height: 76px; resize: vertical; }
+.seg { display: inline-flex; border: 1px solid var(--color-divider); height: 44px; }
+.seg-opt { display: inline-flex; align-items: center; padding: 0 22px; font-size: 15px; cursor: pointer; }
+.seg-opt + .seg-opt { border-left: 1px solid var(--color-divider); }
+.seg-opt input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.seg-opt:has(input:checked) { background: var(--fc-alive); color: #0a0c0d; }
+.seg-opt:has(input:focus-visible) { outline: 2px solid var(--fc-alive); outline-offset: -2px; }
+
+.table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.table th { text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; color: rgba(228, 231, 229, 0.6); padding: 8px; border-bottom: 1px solid var(--color-divider); }
+.table td { padding: 11px 8px; border-bottom: 1px solid rgba(228, 231, 229, 0.08); }
+.table tbody tr:hover { background: rgba(228, 231, 229, 0.04); }
