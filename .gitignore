@@ -1,0 +1,9 @@
+.env
+node_modules
+web/node_modules
+web/dist
+data/videos/*.mp4
+data/videos/*.mov
+cache/
+docs/media/*.mp4
+.DS_Store

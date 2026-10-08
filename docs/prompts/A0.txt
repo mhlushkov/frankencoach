@@ -1,0 +1,10 @@
+You are bootstrapping the FrankenCoach repo for a hackathon (hard deadline 07:14). The repo was just created with `gh repo create` and is empty; the current directory is its root. Do task A0 only, then stop.
+
+The plans live outside the repo in ~/Downloads/dusk-till-dawn-2026-10-08/ (00-MASTER-PLAN.md, 01-TRACK-A-ENGINE.md, 02-TRACK-B-DESIGN-UI-DEMO.md, 03-FLEET-OPS.md, prompts/).
+
+1. Copy the four .md files into docs/plans/ and the prompts/ folder into docs/prompts/.
+2. Read: docs/plans/01-TRACK-A-ENGINE.md task A0 (steps 2-10; step 1 is already done), docs/plans/00-MASTER-PLAN.md §4 (contracts) and §7 (agent rules), docs/plans/03-FLEET-OPS.md §2 (scripts/agent-worktree.sh) and §3 (.claude/settings.json, CLAUDE.md). Nothing else.
+3. Create everything A0 lists (including .github/workflows/test.yml), plus from 03-FLEET-OPS: scripts/agent-worktree.sh (chmod +x), .claude/settings.json, CLAUDE.md (English, §3.2 text). contracts/* must be verbatim from 00 §4. contracts/pricing.json: use the format from 00 §4.7 with the two model ids from env.example and every price set to null, "fetchedAt": null; a human fills it.
+4. Do not start dev servers. `bun test` may report no tests, that is fine. `cd web && bun run build` must pass.
+5. Run `git config user.email "242019923+mhlushkov@users.noreply.github.com"` (local repo config), then commit with the message from A0 step 10 and push to main.
+6. Print three lines DONE / VERIFY / LEFT and stop.

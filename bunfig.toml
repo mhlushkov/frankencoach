@@ -1,0 +1,3 @@
+# Root `bun test` covers server/, tools/, scripts/, data/synthetic. web/ is Vite-only (cd web && bun run build).
+[test]
+timeout = 30000

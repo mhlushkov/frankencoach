@@ -1,0 +1,20 @@
+{
+  "name": "frankencoach",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch server/index.ts",
+    "web": "cd web && bun run dev",
+    "test": "bun test",
+    "demo:reset": "bash scripts/demo-reset.sh"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "latest"
+  }
+}

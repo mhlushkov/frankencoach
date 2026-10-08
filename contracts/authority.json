@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "allowedPermissions": ["compute"],
+  "writablePaths": ["tools/<name>/"],
+  "allowedImportPrefixes": ["../../contracts/types", "../pose-metrics", "../series-core", "../", "../../data/", "bun:test"],
+  "forbiddenSourceTokens": ["fetch(", "http", "from 'fs'", "from \"fs\"", "node:", "child_process", "Bun.spawn", "Bun.write", "Bun.file", "process.env", "eval(", "Function(", "import("],
+  "maxGrowAttempts": 3, "testTimeoutMs": 60000, "sessionBudgetUsdDefault": 1.0, "maxToolsPerSession": 6,
+  "neverDo": [
+    "медичні поради; оцінка готовності/допуск до занурення, змагань, навантажень",
+    "зміна contracts/, authority.json, pricing.json, activities.json (крім додавання нового канонічного спорту через activities.json? — НІ: нові спорти агент додає у tools/registry.json, не в contracts/)",
+    "вирощування без підтвердження користувача (крім DEMO_AUTOCONFIRM для нічного скрипта)",
+    "надсилання відео/повних таблиць будь-куди; у модель ідуть лише 3 кадри 256px або 30 рядків таблиці, і метрики",
+    "мережа, файли, env, підпроцеси з інструментів"
+  ]
+}

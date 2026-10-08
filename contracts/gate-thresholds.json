@@ -1,0 +1,10 @@
+{
+  "minPersonFrameRatio": 0.6,
+  "minMeanVisibility": 0.5,
+  "minMotionEnergy": 0.02,
+  "maxJitter": 0.15,
+  "maxDurationSec": 60,
+  "sampleFps": 10,
+  "minClassifyConfidence": 0.7,
+  "table": { "minRows": 10, "minNumericCols": 1, "requireMonotonicTime": true }
+}
