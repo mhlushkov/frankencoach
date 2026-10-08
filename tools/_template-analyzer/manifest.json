@@ -1,0 +1,14 @@
+{
+  "name": "_template-analyzer",
+  "kind": "analyzer",
+  "activity": "template",
+  "inputType": "landmarks",
+  "outputType": "result",
+  "description": "Example analyzer for the growth prompt: composes pose-metrics to compute a knee-angle range and rep count. Never installed.",
+  "permissions": ["compute"],
+  "createdBy": "human",
+  "createdAt": "2026-10-08T21:45:00.000Z",
+  "basedOn": ["pose-metrics"],
+  "uses": 0,
+  "testStatus": "pass"
+}

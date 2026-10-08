@@ -1,0 +1,14 @@
+{
+  "name": "_template-parser",
+  "kind": "parser",
+  "activity": "template",
+  "inputType": "raw:template-csv",
+  "outputType": "session",
+  "description": "Example parser for the growth prompt: CSV with a time column and numeric columns → Session via series-core.parseCsvLoose. Never installed.",
+  "permissions": ["compute"],
+  "createdBy": "human",
+  "createdAt": "2026-10-08T21:45:00.000Z",
+  "basedOn": ["series-core"],
+  "uses": 0,
+  "testStatus": "pass"
+}
