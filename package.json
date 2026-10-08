@@ -7,7 +7,8 @@
     "dev": "bun --watch server/index.ts",
     "web": "cd web && bun run dev",
     "test": "bun test",
-    "demo:reset": "bash scripts/demo-reset.sh"
+    "demo:reset": "bash scripts/demo-reset.sh",
+    "grow:overnight": "bun scripts/grow-overnight.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "latest",
