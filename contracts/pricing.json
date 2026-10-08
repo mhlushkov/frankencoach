@@ -1,8 +1,9 @@
 {
-  "fetchedAt": null,
-  "source": "https://www.anthropic.com/pricing",
+  "fetchedAt": "2026-10-08T20:25:00Z",
+  "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "note": "USD per 1M tokens. cacheWritePerM = 5-minute cache write. claude-haiku-5-5 prices are the <=100k-token-prompt tier (prompts over 100k cost 5x; we never send that many).",
   "models": {
-    "claude-sonnet-5-5": { "inputPerM": null, "outputPerM": null, "cacheReadPerM": null, "cacheWritePerM": null },
-    "claude-haiku-5-5": { "inputPerM": null, "outputPerM": null, "cacheReadPerM": null, "cacheWritePerM": null }
+    "claude-sonnet-5-5": { "inputPerM": 2.0,  "outputPerM": 10.0, "cacheReadPerM": 0.10, "cacheWritePerM": 2.50 },
+    "claude-haiku-5-5":  { "inputPerM": 0.10, "outputPerM": 0.50, "cacheReadPerM": 0.01, "cacheWritePerM": 0.125 }
   }
 }
