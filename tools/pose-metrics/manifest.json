@@ -1,0 +1,13 @@
+{
+  "name": "pose-metrics",
+  "kind": "analyzer",
+  "activity": "*",
+  "inputType": "landmarks",
+  "outputType": "result",
+  "description": "Generic body-landmark metrics: joint angles, torso angle, visibility, motion energy, jitter, bbox, dominant frequency, cycle counting.",
+  "permissions": ["compute"],
+  "createdBy": "human",
+  "createdAt": "2026-10-08T21:00:00.000Z",
+  "uses": 0,
+  "testStatus": "pass"
+}
