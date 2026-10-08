@@ -1,6 +1,7 @@
 import type { AgentEvent, AnalyzeRequest, ToolManifest } from '../contracts/types';
 import authority from '../contracts/authority.json';
 import { appendLog } from './agent/log';
+import type { Budget } from './agent/cost';
 
 export interface AppDeps {
   analyze(req: AnalyzeRequest): AsyncGenerator<AgentEvent>;
@@ -9,6 +10,8 @@ export interface AppDeps {
   forget(name: string): boolean;
   clearCache(prefix: string): number;
   demoMode: boolean;
+  /** USD left in the most recent session budget (contracts/events.md GET /health). */
+  budgetLeftUsd?: () => number;
   heartbeatMs?: number;
 }
 
@@ -22,12 +25,13 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...CORS } });
 
 export function createApp(deps: AppDeps) {
+  const startedAt = new Date().toISOString();
   return {
     async fetch(req: Request): Promise<Response> {
       const url = new URL(req.url);
       if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
-      if (url.pathname === '/health') return json({ ok: true, toolsCount: deps.toolsCount(), demoMode: deps.demoMode });
-      if (url.pathname === '/tools' && req.method === 'GET') return json({ tools: deps.listTools() });
+      if (url.pathname === '/health') return json({ ok: true, demoMode: deps.demoMode, budgetLeftUsd: deps.budgetLeftUsd?.() ?? 0, toolsCount: deps.toolsCount(), startedAt });
+      if (url.pathname === '/tools' && req.method === 'GET') return json(deps.listTools());
       if (url.pathname === '/forget' && req.method === 'POST') {
         if (!deps.demoMode) return json({ error: 'forget is only available in DEMO_MODE' }, 403);
         const body = await req.json().catch(() => ({})) as { name?: string };
@@ -85,8 +89,11 @@ export async function makeRealDeps(): Promise<AppDeps> {
   const root = process.cwd();
   const norm = (r: any) => (r?.ok === true || r?.status === 'ok' ? { ...r, ok: true } : { ...r, ok: false, tips: r?.tips ?? [] });
   const demoMode = process.env.DEMO_MODE === '1';
+  const budgetLimitUsd = Number(process.env.SESSION_BUDGET_USD || authority.sessionBudgetUsdDefault);
+  const budgets = new Map<string, Budget>();
   return {
     demoMode,
+    budgetLeftUsd: () => { const last = [...budgets.values()].at(-1); return last ? last.left : budgetLimitUsd; },
     toolsCount: () => registry.list(root).length,
     listTools: () => registry.list(root),
     forget: (name) => registry.forget(name, root),
@@ -111,7 +118,8 @@ export async function makeRealDeps(): Promise<AppDeps> {
       llm: (r) => llmMod.callLlm(r, llmDeps),
       checkIntent: authMod.checkIntent,
       estimateGrowUsd: (k) => costMod.estimateGrowUsd(k),
-      budgetLimitUsd: Number(process.env.SESSION_BUDGET_USD || authority.sessionBudgetUsdDefault),
+      budgetLimitUsd,
+      budgets,
       maxToolsPerSession: authority.maxToolsPerSession,
       autoConfirm: process.env.DEMO_AUTOCONFIRM === '1',
       appendLog,

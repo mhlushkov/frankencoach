@@ -7,6 +7,7 @@ const deps: AppDeps = {
   forget: () => true,
   clearCache: () => 0,
   demoMode: true,
+  budgetLeftUsd: () => 0.75,
   analyze: async function* () { yield { type: 'answer' as const, text: 'hi' }; },
 };
 
@@ -15,9 +16,19 @@ describe('server', () => {
     const app = createApp(deps);
     const res = await app.fetch(new Request('http://localhost/health'));
     expect(res.status).toBe(200);
-    const body = await res.json() as { ok: boolean; toolsCount: number };
+    const body = await res.json() as { ok: boolean; toolsCount: number; budgetLeftUsd: number; startedAt: string; demoMode: boolean };
     expect(body.ok).toBe(true);
     expect(body.toolsCount).toBe(2);
+    expect(body.budgetLeftUsd).toBe(0.75);
+    expect(body.demoMode).toBe(true);
+    expect(typeof body.startedAt).toBe('string');
+  });
+
+  test('/tools returns a bare ToolManifest[] per contracts/events.md', async () => {
+    const app = createApp(deps);
+    const res = await app.fetch(new Request('http://localhost/tools'));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([]);
     expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:5173');
   });
 
@@ -34,6 +45,6 @@ describe('server', () => {
 
   test('/tools lists', async () => {
     const res = await createApp(deps).fetch(new Request('http://localhost/tools'));
-    expect(await res.json()).toEqual({ tools: [] });
+    expect(await res.json()).toEqual([]);
   });
 });
