@@ -1,0 +1,16 @@
+[
+ {
+  "type": "thinking",
+  "text": "Checking the video…"
+ },
+ {
+  "type": "rejected",
+  "reason": "no_human",
+  "text": "I could not find a person in this video.",
+  "tips": [
+   "Film the whole body",
+   "Use good light",
+   "One athlete in frame"
+  ]
+ }
+]

@@ -1,0 +1,15 @@
+[
+ {
+  "type": "thinking",
+  "text": "Reading the file…"
+ },
+ {
+  "type": "rejected",
+  "reason": "bad_table",
+  "text": "This file does not look like a time-series table.",
+  "tips": [
+   "Export as CSV/GPX/TCX from the watch app",
+   "Need a time column and at least one numeric column"
+  ]
+ }
+]

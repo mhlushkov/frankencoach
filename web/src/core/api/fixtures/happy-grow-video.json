@@ -1,0 +1,188 @@
+[
+ {
+  "type": "thinking",
+  "text": "Checking the video: one person, steady motion."
+ },
+ {
+  "type": "identified",
+  "activity": "freediving",
+  "confidence": 0.86,
+  "text": "Looks like freediving — fin kicks in a pool."
+ },
+ {
+  "type": "cost",
+  "step": "classify",
+  "model": "claude-haiku-5-5",
+  "inputTokens": 800,
+  "outputTokens": 80,
+  "usd": 0.004,
+  "sessionUsd": 0.004,
+  "cached": true
+ },
+ {
+  "type": "plan",
+  "chain": [
+   {
+    "step": "analyze",
+    "inputType": "landmarks",
+    "activity": "freediving",
+    "missing": true
+   }
+  ]
+ },
+ {
+  "type": "growing",
+  "name": "freediving-technique",
+  "attempt": 1,
+  "text": "Writing freediving-technique based on pose-metrics…",
+  "stepIndex": 0
+ },
+ {
+  "type": "test_result",
+  "name": "freediving-technique",
+  "attempt": 1,
+  "pass": false,
+  "summary": "(fail) kick_symmetry in 0..1\n  expected 1.12 to be <= 1",
+  "stepIndex": 0
+ },
+ {
+  "type": "growing",
+  "name": "freediving-technique",
+  "attempt": 2,
+  "text": "Fixing normalisation of kick_symmetry…",
+  "stepIndex": 0
+ },
+ {
+  "type": "test_result",
+  "name": "freediving-technique",
+  "attempt": 2,
+  "pass": true,
+  "summary": "6 pass\n0 fail",
+  "stepIndex": 0
+ },
+ {
+  "type": "authority_check",
+  "name": "freediving-technique",
+  "pass": true,
+  "text": "compute only; imports: pose-metrics",
+  "stepIndex": 0
+ },
+ {
+  "type": "tool_installed",
+  "manifest": {
+   "permissions": [
+    "compute"
+   ],
+   "createdBy": "agent",
+   "createdAt": "2026-10-08T21:00:00Z",
+   "uses": 0,
+   "testStatus": "pass",
+   "name": "freediving-technique",
+   "kind": "analyzer",
+   "activity": "freediving",
+   "inputType": "landmarks",
+   "outputType": "result",
+   "description": "Streamline, kick symmetry and head position for freediving video",
+   "model": "claude-sonnet-5-5",
+   "costUsd": 0.42,
+   "attempts": 2,
+   "basedOn": [
+    "pose-metrics"
+   ]
+  },
+  "stepIndex": 0
+ },
+ {
+  "type": "cost",
+  "step": "grow",
+  "model": "claude-sonnet-5-5",
+  "inputTokens": 84000,
+  "outputTokens": 8400,
+  "usd": 0.42,
+  "sessionUsd": 0.424
+ },
+ {
+  "type": "tool_used",
+  "name": "freediving-technique",
+  "result": {
+   "metrics": {
+    "streamline_score": 0.78,
+    "kick_symmetry": 0.91,
+    "head_lift_deg": 14.5,
+    "kicks_per_min": 42,
+    "knee_bend_deg": [
+     38,
+     41,
+     36,
+     44
+    ]
+   },
+   "series": {
+    "knee_angle_deg": {
+     "t": [
+      0,
+      0.5,
+      1,
+      1.5,
+      2,
+      2.5,
+      3
+     ],
+     "v": [
+      170,
+      132,
+      165,
+      128,
+      168,
+      135,
+      171
+     ],
+     "unit": "deg"
+    }
+   },
+   "highlights": [
+    {
+     "frame": 12,
+     "joints": [
+      0,
+      11,
+      12
+     ],
+     "note": "head lifted — look at the line, not ahead"
+    },
+    {
+     "frame": 27,
+     "joints": [
+      25,
+      26
+     ],
+     "note": "knees bend too much — kick from the hips"
+    }
+   ],
+   "warnings": [],
+   "usable": true
+  },
+  "stepIndex": 0
+ },
+ {
+  "type": "answer",
+  "text": "Good streamline (0.78) and symmetric kicks (0.91). Two fixes: keep your head neutral — you lift it ~15°, and kick from the hips with straighter knees."
+ },
+ {
+  "type": "cost",
+  "step": "feedback",
+  "model": "claude-haiku-5-5",
+  "inputTokens": 1200,
+  "outputTokens": 120,
+  "usd": 0.006,
+  "sessionUsd": 0.43
+ },
+ {
+  "type": "cost",
+  "step": "total",
+  "inputTokens": 86000,
+  "outputTokens": 8600,
+  "usd": 0.43,
+  "sessionUsd": 0.43
+ }
+]

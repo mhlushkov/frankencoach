@@ -1,0 +1,21 @@
+[
+ {
+  "type": "thinking",
+  "text": "Checking the video…"
+ },
+ {
+  "type": "identified",
+  "activity": "running",
+  "confidence": 0.82,
+  "text": "This looks like running."
+ },
+ {
+  "type": "rejected",
+  "reason": "mismatch",
+  "text": "You said swimming, but the video shows running.",
+  "tips": [
+   "Pick the right sport",
+   "Or leave the sport empty"
+  ]
+ }
+]

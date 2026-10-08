@@ -1,0 +1,44 @@
+[
+ {
+  "type": "thinking",
+  "text": "Checking the video: one person, steady motion."
+ },
+ {
+  "type": "identified",
+  "activity": "freediving",
+  "confidence": 0.86,
+  "text": "Looks like freediving — fin kicks in a pool."
+ },
+ {
+  "type": "cost",
+  "step": "classify",
+  "model": "claude-haiku-5-5",
+  "inputTokens": 800,
+  "outputTokens": 80,
+  "usd": 0.004,
+  "sessionUsd": 0.004
+ },
+ {
+  "type": "plan",
+  "chain": [
+   {
+    "step": "analyze",
+    "inputType": "landmarks",
+    "activity": "freediving",
+    "missing": true
+   }
+  ]
+ },
+ {
+  "type": "missing_capability",
+  "kind": "analyzer",
+  "activity": "freediving",
+  "inputType": "landmarks",
+  "estimateUsd": 0.45,
+  "basedOn": [
+   "pose-metrics"
+  ],
+  "text": "I have no freediving analyzer yet. Build one for ≈ $0.45?",
+  "stepIndex": 0
+ }
+]

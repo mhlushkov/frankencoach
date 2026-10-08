@@ -1,0 +1,111 @@
+[
+ {
+  "type": "thinking",
+  "text": "Checking the video: one person, steady motion."
+ },
+ {
+  "type": "identified",
+  "activity": "squat",
+  "confidence": 0.94,
+  "text": "Bodyweight squats."
+ },
+ {
+  "type": "cost",
+  "step": "classify",
+  "model": "claude-haiku-5-5",
+  "inputTokens": 800,
+  "outputTokens": 80,
+  "usd": 0.004,
+  "sessionUsd": 0.004,
+  "cached": true
+ },
+ {
+  "type": "plan",
+  "chain": [
+   {
+    "step": "analyze",
+    "inputType": "landmarks",
+    "activity": "squat",
+    "missing": false,
+    "tool": "squat-form"
+   }
+  ]
+ },
+ {
+  "type": "reused",
+  "tool": "squat-form",
+  "how": "exact",
+  "savedUsd": 0.31,
+  "text": "I already built squat-form — reusing it for free.",
+  "stepIndex": 0
+ },
+ {
+  "type": "tool_used",
+  "name": "squat-form",
+  "result": {
+   "metrics": {
+    "reps": 8,
+    "avg_depth_deg": 92,
+    "min_knee_angle_deg": 84,
+    "valgus_events": 1,
+    "torso_lean_deg": 31
+   },
+   "series": {
+    "knee_angle_deg": {
+     "t": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ],
+     "v": [
+      175,
+      95,
+      172,
+      88,
+      174,
+      90,
+      176
+     ],
+     "unit": "deg"
+    }
+   },
+   "highlights": [
+    {
+     "frame": 33,
+     "joints": [
+      25,
+      27
+     ],
+     "note": "left knee caves in on rep 3"
+    }
+   ],
+   "usable": true
+  },
+  "stepIndex": 0
+ },
+ {
+  "type": "answer",
+  "text": "8 reps, average depth 92° — just above parallel. Watch your left knee on rep 3: push it out over the toes."
+ },
+ {
+  "type": "cost",
+  "step": "feedback",
+  "model": "claude-haiku-5-5",
+  "inputTokens": 1000,
+  "outputTokens": 100,
+  "usd": 0.005,
+  "sessionUsd": 0.009
+ },
+ {
+  "type": "cost",
+  "step": "total",
+  "inputTokens": 1800,
+  "outputTokens": 180,
+  "usd": 0.009,
+  "sessionUsd": 0.009
+ }
+]

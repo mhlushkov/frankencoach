@@ -1,0 +1,53 @@
+[
+ {
+  "permissions": [
+   "compute"
+  ],
+  "createdBy": "human",
+  "createdAt": "2026-10-08T21:00:00Z",
+  "uses": 3,
+  "testStatus": "pass",
+  "name": "pose-metrics",
+  "kind": "analyzer",
+  "activity": "*",
+  "inputType": "landmarks",
+  "outputType": "result",
+  "description": "Joint angles, symmetry and motion energy from body landmarks"
+ },
+ {
+  "permissions": [
+   "compute"
+  ],
+  "createdBy": "human",
+  "createdAt": "2026-10-08T21:00:00Z",
+  "uses": 3,
+  "testStatus": "pass",
+  "name": "series-core",
+  "kind": "analyzer",
+  "activity": "*",
+  "inputType": "session",
+  "outputType": "result",
+  "description": "Generic stats for any time series"
+ },
+ {
+  "permissions": [
+   "compute"
+  ],
+  "createdBy": "agent",
+  "createdAt": "2026-10-08T21:00:00Z",
+  "uses": 4,
+  "testStatus": "pass",
+  "name": "squat-form",
+  "kind": "analyzer",
+  "activity": "squat",
+  "inputType": "landmarks",
+  "outputType": "result",
+  "description": "Squat depth, knee valgus and torso lean",
+  "model": "claude-sonnet-5-5",
+  "costUsd": 0.31,
+  "attempts": 1,
+  "basedOn": [
+   "pose-metrics"
+  ]
+ }
+]
