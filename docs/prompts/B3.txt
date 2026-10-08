@@ -1,0 +1,11 @@
+You are one of ~8 Claude Code agents working in parallel on this repo tonight (hackathon, hard deadline 07:14). Do exactly one task, then stop.
+
+Task: B3 in docs/plans/02-TRACK-B-DESIGN-UI-DEMO.md
+Read, in this order, and nothing else: CLAUDE.md; contracts/types.ts; contracts/tool-format.md (only if your task touches tools/); the task card B3. Do not read the other plan files or unrelated folders.
+
+Then:
+1. List the files you will create/modify (must match the card's "Files"). If the card depends on a module that is not in the repo yet, say which and mock it against contracts/types.ts.
+2. Write the tests from the card first, run `bun test <your folder>` (Track B: `cd web && bun run build`), make them pass with the minimal implementation.
+3. Time box 45 minutes. If blocked for 10 minutes or at 45 minutes: commit what passes and report.
+4. Commit with the message from the card, then follow "Git flow" in CLAUDE.md (fetch, rebase, push; repeat on rejection, max 3).
+5. Print the three lines DONE / VERIFY / LEFT and stop.
