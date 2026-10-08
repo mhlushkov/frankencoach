@@ -112,3 +112,50 @@ test('selectors.isBusy / canSend', () => {
   expect(selectors.isBusy(s)).toBe(true)
   expect(selectors.canSend(s)).toBe(false)
 })
+
+// "Yes, learn it" resends the same request with confirmGrow; the server replays the pre-growth events first.
+const ask: AgentEvent = { type: 'missing_capability', kind: 'analyzer', activity: 'jump-rope', inputType: 'landmarks', estimateUsd: 0.4, text: 'grow?', stepIndex: 0 }
+const plan: AgentEvent = { type: 'plan', chain: [{ step: 'analyze', inputType: 'landmarks', activity: 'jump-rope', missing: true }] }
+const classify: Action[] = [ev({ type: 'thinking', text: 't' }), ev({ type: 'identified', activity: 'jump-rope', confidence: 0.9, text: 'i' })]
+const asked = () => run([{ type: 'send', request: req }, ...classify, ev(plan), ev(ask), { type: 'requestDone' }])
+const replay: Action[] = [...classify, ev({ type: 'cost', step: 'classify', inputTokens: 1, outputTokens: 1, usd: 0.0001, sessionUsd: 0.0002 }), ev(plan), ev({ ...ask })]
+
+test('confirm re-run: replayed identified/question are not appended again, pending keeps its event, growth lands', () => {
+  const s = run([
+    ...replay,
+    ev({ type: 'growing', name: 'jump-rope-technique', attempt: 1, text: 'g', stepIndex: 0 }),
+    ev({ type: 'tool_installed', manifest: { ...manifest, name: 'jump-rope-technique', activity: 'jump-rope' }, stepIndex: 0 }),
+    ev({ type: 'answer', text: 'nice jumps' }),
+    { type: 'requestDone' },
+  ], asked())
+  expect(s.events.filter((e) => e.type === 'identified')).toHaveLength(1)
+  expect(s.events.filter((e) => e.type === 'missing_capability')).toHaveLength(1)
+  expect(s.pending).toBe(ask) // same object: the row on screen keeps its "you said yes"
+  expect(s.events.filter((e) => e.type === 'cost')).toHaveLength(1) // the second classify is real spend
+  expect(s.sessionUsd).toBe(0.0002)
+  expect(s.chain?.[0].tool).toBe('jump-rope-technique')
+  expect(s.tools.map((t) => t.name)).toEqual(['jump-rope-technique'])
+  expect(s.status).toBe('done')
+})
+
+test('confirm re-run that now reuses (grown elsewhere meanwhile) appends the reused row and ends done', () => {
+  const s = run([...replay.slice(0, 4), ev({ type: 'reused', tool: 'jump-rope-technique', how: 'exact', savedUsd: 0.4, text: 'r', stepIndex: 0 }), ev({ type: 'answer', text: 'ok' }), { type: 'requestDone' }], asked())
+  expect(s.events.filter((e) => e.type === 'missing_capability')).toHaveLength(1)
+  expect(s.events.filter((e) => e.type === 'reused')).toHaveLength(1)
+  expect(s.savedUsd).toBe(0.4)
+  expect(s.status).toBe('done')
+})
+
+test('confirm re-run that gets rejected ends done with the coach message', () => {
+  const s = run([ev({ type: 'thinking', text: 't' }), ev({ type: 'rejected', reason: 'no_human', text: 'no one', tips: [] }), { type: 'requestDone' }], asked())
+  expect(s.events.filter((e) => e.type === 'rejected')).toHaveLength(1)
+  expect(s.messages.at(-1)?.text).toBe('no one')
+  expect(s.status).toBe('done')
+})
+
+test('a fresh send after the question starts a clean event list', () => {
+  const s = run([{ type: 'send', request: req }, ...classify], asked())
+  expect(s.events.filter((e) => e.type === 'identified')).toHaveLength(1)
+  expect(s.pending).toBeUndefined()
+  expect(s.status).toBe('analyzing')
+})

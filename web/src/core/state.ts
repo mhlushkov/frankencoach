@@ -18,8 +18,30 @@ function patchStep(chain: ChainStep[] | undefined, i: number | undefined, tool: 
   return chain.map((s, j) => (j === i ? { ...s, tool, missing: false } : s))
 }
 
+// Confirm re-run ("Yes, learn it" resends the same request with confirmGrow): before growing, the server replays
+// thinking → identified → cost → plan → missing_capability. No `send` happened in between, so status is still
+// awaiting_confirm and those rows are already on screen. Keep the original pending event; let only new work through.
+function applyReplay(s: AppState, e: AgentEvent): AppState | undefined {
+  if (s.status !== 'awaiting_confirm') return undefined
+  switch (e.type) {
+    case 'thinking':
+    case 'identified':
+      return s
+    case 'plan':
+      return { ...s, chain: e.chain }
+    case 'missing_capability':
+      return { ...s, status: 'analyzing' } // the question on screen was answered; growth starts next
+    default:
+      return undefined // cost (real spend) and everything after the replay apply normally
+  }
+}
+
 // The single place where AgentEvents change state; each type handled once.
 function applyEvent(s: AppState, e: AgentEvent): AppState {
+  const replayed = applyReplay(s, e)
+  if (replayed) return replayed
+  // first real event of a confirm re-run that skipped the question (reused, rejected, …): the request is running again
+  if (s.status === 'awaiting_confirm' && e.type !== 'cost') s = { ...s, status: 'analyzing' }
   s = { ...s, events: [...s.events, e] }
   switch (e.type) {
     case 'thinking':
