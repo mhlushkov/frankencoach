@@ -1,0 +1,13 @@
+{
+  "name": "series-core",
+  "kind": "analyzer",
+  "activity": "*",
+  "inputType": "session",
+  "outputType": "result",
+  "description": "Built-in time-series helpers (resample, slope, peaks, phases, zones, parseCsvLoose, toSeconds) and a generic min/max/mean analyzer for any Session.",
+  "permissions": ["compute"],
+  "createdBy": "human",
+  "createdAt": "2026-10-08T21:00:00.000Z",
+  "uses": 0,
+  "testStatus": "pass"
+}
