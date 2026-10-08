@@ -3,6 +3,7 @@
   "minMeanVisibility": 0.5,
   "minMotionEnergy": 0.02,
   "maxJitter": 0.15,
+  "maxBoneNoiseCv": 0.08,
   "maxDurationSec": 60,
   "sampleFps": 10,
   "minClassifyConfidence": 0.7,
