@@ -142,3 +142,16 @@ test('appendLog writes jsonl, readLog returns latest', () => {
   expect(rows.length).toBe(1);
   expect(rows[0].step).toBe('b');
 });
+
+test('thinking is turned off per model: haiku disabled, sonnet between_tools', async () => {
+  const c = fakeClient([ok('a'), ok('b')]);
+  await callLlm({ tier: 'cheap', system: 's', user: 'u' }, deps(c));
+  await callLlm({ tier: 'strong', system: 's', user: 'u' }, deps(c));
+  expect(c.calls[0].body.thinking).toEqual({ type: 'disabled' });
+  expect(c.calls[1].body.thinking).toEqual({ type: 'between_tools' });
+});
+
+test('json: truncated reply (stop_reason max_tokens) throws a clear LlmError', async () => {
+  const c = fakeClient([{ ...ok('{"a":'), stop_reason: 'max_tokens' }]);
+  await expect(callLlm({ tier: 'cheap', system: 's', user: 'u', json: true, maxTokens: 50 }, deps(c))).rejects.toThrow(/truncated at 50 tokens/);
+});

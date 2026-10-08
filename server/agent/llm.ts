@@ -26,6 +26,13 @@ export class LlmError extends Error {
 
 const JSON_RULE = 'Reply with a single JSON object only. No prose, no markdown fences.';
 
+// Claude 5.5 models think by default; thinking tokens count against max_tokens and truncate JSON replies
+// ("invalid JSON from model: Unexpected EOF"). Haiku 5.5 turns it off with {type:'disabled'};
+// Sonnet/Opus 5.5 reject that and want {type:'between_tools'} (no thinking before the reply).
+export function thinkingOff(model: string): { type: 'disabled' | 'between_tools' } {
+  return /haiku/i.test(model) ? { type: 'disabled' } : { type: 'between_tools' };
+}
+
 export function makeDeps(env: Record<string, string | undefined> = process.env): LlmDeps {
   const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set — copy env.example to .env and add your key');
@@ -59,6 +66,7 @@ export async function callLlm(req: LlmRequest, deps: LlmDeps): Promise<LlmRespon
   const body = {
     model,
     max_tokens: req.maxTokens ?? 4096,
+    thinking: thinkingOff(model),
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     messages: [{
       role: 'user',
@@ -80,6 +88,9 @@ export async function callLlm(req: LlmRequest, deps: LlmDeps): Promise<LlmRespon
       if ((status === 429 || status === 529) && attempt === 0) { await sleep(2000); continue; }
       throw new LlmError(status, e?.message ?? String(e));
     }
+  }
+  if (req.json && res.stop_reason === 'max_tokens') {
+    throw new LlmError(undefined, `model output truncated at ${body.max_tokens} tokens (stop_reason=max_tokens)`);
   }
   const text = (res.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('');
   const u = res.usage ?? {};
