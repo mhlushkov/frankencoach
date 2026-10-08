@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import sample from '../../data/synthetic/fixtures/dive-garmin-like.csv' with { type: 'text' };
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import expected from '../../data/synthetic/fixtures/expected.json';
 import parse, { ParseError } from './index';
+
+const sample = readFileSync(join(import.meta.dir, '../../data/synthetic/fixtures/dive-garmin-like.csv'), 'utf8');
 
 describe('_template-parser', () => {
   test('known values on synthetic dive CSV', () => {

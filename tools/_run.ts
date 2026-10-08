@@ -1,5 +1,6 @@
 // Subprocess entry for runner.runTool: `bun run tools/_run.ts <name>`, input JSON on stdin, output JSON on stdout.
 // Parser input is { raw, filename } → parse(raw, { filename }); anything else → analyze(input).
+export {};
 const name = process.argv[2];
 try {
   if (!name || !/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error(`bad tool name: ${name}`);

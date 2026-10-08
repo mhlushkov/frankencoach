@@ -12,13 +12,7 @@ const FIX = join(import.meta.dir, '../../data/synthetic/fixtures');
 const expected = JSON.parse(readFileSync(join(FIX, 'expected.json'), 'utf8'));
 const load = (name: string): Landmarks => JSON.parse(readFileSync(join(FIX, `${name}.landmarks.json`), 'utf8'));
 
-// expected.json angles are exact in pixel space (x*width, y*height); pose-metrics measures in
-// normalized coords, so stretch x by the aspect ratio to make normalized angles == pixel angles.
-function pixelAspect(l: Landmarks): Landmarks {
-  const k = l.width / l.height;
-  return { ...l, frames: l.frames.map((f) => ({ ...f, landmarks: f.landmarks?.map((p) => ({ ...p, x: p.x * k })) ?? null })) };
-}
-const squat = () => pixelAspect(load('squat'));
+const squat = () => load('squat');
 const freedive = () => load('freedive');
 const still = () => load('static');
 const noHuman = () => load('noHuman');

@@ -16,6 +16,13 @@ type Num = number | null;
 
 const frames = (l: Landmarks | null | undefined) => (l && Array.isArray(l.frames) ? l.frames : []);
 
+/** x scale (width/height) that makes normalized coords isotropic, so angles match pixel space; 1 if unknown. */
+export function aspectK(l: Landmarks | null | undefined): number {
+  const w = l?.width, h = l?.height;
+  return typeof w === 'number' && typeof h === 'number' && w > 0 && h > 0 ? w / h : 1;
+}
+const sx = (p: Landmark, k: number): Landmark => (k === 1 ? p : { ...p, x: p.x * k });
+
 /** Angle at b (degrees, 0..180) between rays b→a and b→c. */
 export function angleDeg(a: Landmark, b: Landmark, c: Landmark): number {
   const v1x = a.x - b.x, v1y = a.y - b.y, v2x = c.x - b.x, v2y = c.y - b.y;
@@ -25,26 +32,27 @@ export function angleDeg(a: Landmark, b: Landmark, c: Landmark): number {
   return (Math.acos(cos) * 180) / Math.PI;
 }
 
-/** Per-frame angle at b; null when frame has no person or any point visibility < 0.3. */
+/** Per-frame angle at b (pixel-aspect corrected); null when frame has no person or any point visibility < 0.3. */
 export function angleSeries(l: Landmarks, a: number, b: number, c: number): Num[] {
+  const k = aspectK(l);
   return frames(l).map(f => {
     const lm = f.landmarks;
     if (!lm) return null;
     const pa = lm[a], pb = lm[b], pc = lm[c];
     if (!pa || !pb || !pc || Math.min(pa.visibility, pb.visibility, pc.visibility) < MIN_VIS) return null;
-    return angleDeg(pa, pb, pc);
+    return angleDeg(sx(pa, k), sx(pb, k), sx(pc, k));
   });
 }
 
 const mid = (p: Landmark, q: Landmark) => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 });
 
-/** Torso tilt from vertical (degrees): 0 = upright, 90 = horizontal. */
-export function torsoAngleDeg(lm: Landmark[] | null): number | null {
+/** Torso tilt from vertical (degrees): 0 = upright, 90 = horizontal. k = aspectK(landmarks). */
+export function torsoAngleDeg(lm: Landmark[] | null, k = 1): number | null {
   if (!lm) return null;
   const pts = [lm[J.lShoulder], lm[J.rShoulder], lm[J.lHip], lm[J.rHip]];
   if (pts.some(p => !p || p.visibility < MIN_VIS)) return null;
   const s = mid(pts[0], pts[1]), h = mid(pts[2], pts[3]);
-  const dx = s.x - h.x, dy = h.y - s.y;
+  const dx = (s.x - h.x) * k, dy = h.y - s.y;
   if (dx === 0 && dy === 0) return null;
   return (Math.atan2(Math.abs(dx), dy) * 180) / Math.PI;
 }
@@ -61,6 +69,7 @@ export function visibilityStats(l: Landmarks): { personFrameRatio: number; meanV
   return { personFrameRatio: person / fs.length, meanVisibility: visN ? visSum / visN : 0 };
 }
 
+// motionEnergy, jitter and hipY stay in normalized units on purpose: gate thresholds were tuned on them.
 /** Per-step mean displacement of visible landmarks between consecutive person frames. */
 function displacements(l: Landmarks): number[] {
   const fs = frames(l);
@@ -162,7 +171,8 @@ export default function analyze(l: Landmarks): ToolResult {
   const rKnee = angleSeries(l, J.rHip, J.rKnee, J.rAnkle);
   const knee = angleSeries(l, J.lHip, J.lKnee, J.lAnkle).map((v, i) => v ?? rKnee[i]);
   const k = minMaxMean(knee);
-  const torso = fs.map(f => torsoAngleDeg(f.landmarks));
+  const ak = aspectK(l);
+  const torso = fs.map(f => torsoAngleDeg(f.landmarks, ak));
   const hipY = fs.map(f => (f.landmarks ? (f.landmarks[J.lHip].y + f.landmarks[J.rHip].y) / 2 : null));
   const t = fs.map((f, i) => (Number.isFinite(f.t) ? f.t : i / fps));
   const toSeries = (s: Num[], unit?: string) => {
