@@ -163,6 +163,180 @@ export function countCycles(series: Num[], threshold: number): number {
   return n;
 }
 
+const quantile = (sorted: number[], q: number) => {
+  if (!sorted.length) return 0;
+  const p = (sorted.length - 1) * q, lo = Math.floor(p), hi = Math.ceil(p);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (p - lo);
+};
+const median = (v: number[]) => quantile([...v].sort((a, b) => a - b), 0.5);
+const finite = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
+
+export interface RepCount {
+  count: number; bottoms: number[]; tops: number[];
+  partialStart: boolean; partialEnd: boolean; depthPerRep: number[];
+}
+
+/**
+ * Reps in a joint-angle-like series (low = bottom of the rep). Robust to a stand-up or walk-in at either end:
+ * thresholds come from the p5..p95 range, not min/max. Single nulls are interpolated, longer gaps split the series.
+ * A rep = local minimum with prominence >= minProminence × (p95 − p5), >= minPeriodSec after the previous one.
+ * A half rep at the start (series opens below the midline) or end (closes below it) is flagged, never counted.
+ */
+export function countReps(series: Num[], fps: number, opts: { minProminence?: number; minPeriodSec?: number } = {}): RepCount {
+  const empty: RepCount = { count: 0, bottoms: [], tops: [], partialStart: false, partialEnd: false, depthPerRep: [] };
+  if (!Array.isArray(series) || !series.length) return empty;
+  const rate = fps > 0 ? fps : 30;
+  const minProm = opts.minProminence ?? 0.5, minGap = (opts.minPeriodSec ?? 0.4) * rate;
+  const raw: Num[] = series.map((x, i) => {
+    if (finite(x)) return x;
+    const a = series[i - 1], b = series[i + 1];
+    return finite(a) && finite(b) ? (a + b) / 2 : null;
+  });
+  // segments of consecutive finite values: [start, end] inclusive
+  const segs: [number, number][] = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === null) continue;
+    let j = i;
+    while (j + 1 < raw.length && raw[j + 1] !== null) j++;
+    segs.push([i, j]);
+    i = j;
+  }
+  if (!segs.length) return empty;
+  const sm: number[] = raw.map(() => NaN);
+  for (const [s, e] of segs) for (let i = s; i <= e; i++) {
+    let sum = 0, n = 0;
+    for (let k = Math.max(s, i - 1); k <= Math.min(e, i + 1); k++) { sum += raw[k] as number; n++; }
+    sm[i] = sum / n;
+  }
+  const sorted = sm.filter(Number.isFinite).sort((a, b) => a - b);
+  const p5 = quantile(sorted, 0.05), range = quantile(sorted, 0.95) - p5;
+  if (!(range > 0)) return empty;
+  const thr = minProm * range, midline = p5 + 0.5 * range;
+  const first = segs[0][0], last = segs[segs.length - 1][1];
+  const partialStart = sm[first] < midline, partialEnd = sm[last] < midline;
+
+  const bottoms: number[] = [];
+  segs.forEach(([s, e], si) => {
+    // half reps at the clip edges: before the first rise above the midline / after the last one
+    let from = s, to = e;
+    if (si === 0 && partialStart) { while (from <= e && sm[from] < midline) from++; }
+    if (si === segs.length - 1 && partialEnd) { while (to >= s && sm[to] < midline) to--; }
+    for (let i = Math.max(from, s + 1); i <= Math.min(to, e - 1); i++) {
+      if (!(sm[i] <= sm[i - 1] && sm[i] < sm[i + 1])) continue;
+      let lMax = sm[i], rMax = sm[i];
+      for (let j = i - 1; j >= s && sm[j] >= sm[i]; j--) lMax = Math.max(lMax, sm[j]);
+      for (let j = i + 1; j <= e && sm[j] >= sm[i]; j++) rMax = Math.max(rMax, sm[j]);
+      if (Math.min(lMax, rMax) - sm[i] < thr) continue;
+      const prev = bottoms[bottoms.length - 1];
+      if (prev !== undefined && i - prev < minGap) { if (sm[i] < sm[prev]) bottoms[bottoms.length - 1] = i; continue; }
+      bottoms.push(i);
+    }
+  });
+  // tops: the highest point between consecutive bottoms, plus the lead-in and finish when they clear the midline
+  const argmax = (a: number, b: number) => {
+    let best = -1;
+    for (let i = a; i <= b; i++) if (Number.isFinite(sm[i]) && (best < 0 || sm[i] > sm[best])) best = i;
+    return best;
+  };
+  const tops: number[] = [];
+  if (bottoms.length) {
+    const lead = argmax(first, bottoms[0]);
+    if (lead >= 0 && sm[lead] >= midline) tops.push(lead);
+    for (let k = 1; k < bottoms.length; k++) { const t = argmax(bottoms[k - 1], bottoms[k]); if (t >= 0) tops.push(t); }
+    const tail = argmax(bottoms[bottoms.length - 1], last);
+    if (tail >= 0 && sm[tail] >= midline) tops.push(tail);
+  }
+  return {
+    count: bottoms.length, bottoms, tops, partialStart, partialEnd,
+    depthPerRep: bottoms.map(i => raw[i] as number),
+  };
+}
+
+/** Torso-and-legs joints used to tell whether the athlete is inside the frame. */
+const BODY = [J.lShoulder, J.rShoulder, J.lHip, J.rHip, J.lKnee, J.rKnee, J.lAnkle, J.rAnkle];
+
+/** Frames where the camera cut the athlete off (a visible body joint or the bbox at/over a frame edge). */
+export function coverage(l: Landmarks, margin = 0.01): {
+  inFrameRatio: number; cutFrames: number[]; cutRanges: { fromSec: number; toSec: number }[];
+} {
+  const fs = frames(l);
+  const boxes = bboxSeries(l);
+  const fps = l && l.fps > 0 ? l.fps : 30;
+  const out = (v: number) => v < margin || v > 1 - margin;
+  let person = 0;
+  const cutFrames: number[] = [];
+  fs.forEach((f, i) => {
+    const lm = f.landmarks;
+    if (!lm) return;
+    person++;
+    const joint = BODY.some(j => lm[j] && lm[j].visibility >= 0.5 && (out(lm[j].x) || out(lm[j].y)));
+    const b = boxes[i];
+    const edge = !!b && (b.x <= margin || b.y <= margin || b.x + b.w >= 1 - margin || b.y + b.h >= 1 - margin);
+    if (joint || edge) cutFrames.push(i);
+  });
+  const time = (i: number) => (fs[i] && finite(fs[i].t) ? fs[i].t : i / fps);
+  const cutRanges: { fromSec: number; toSec: number }[] = [];
+  for (let k = 0; k < cutFrames.length; k++) {
+    let e = k;
+    while (e + 1 < cutFrames.length && cutFrames[e + 1] === cutFrames[e] + 1) e++;
+    // a range covers its last frame's duration
+    cutRanges.push({ fromSec: time(cutFrames[k]), toSec: time(cutFrames[e]) + 1 / fps });
+    k = e;
+  }
+  return { inFrameRatio: person ? (person - cutFrames.length) / person : 1, cutFrames, cutRanges };
+}
+
+/** Mean visibility of hip, knee and ankle per side over person frames; the far leg is usually much lower. */
+export function legVisibility(l: Landmarks): { left: number; right: number; better: 'left' | 'right' } {
+  let left = 0, right = 0, n = 0;
+  for (const f of frames(l)) {
+    const lm = f.landmarks;
+    if (!lm) continue;
+    const v = (j: number) => (lm[j] && finite(lm[j].visibility) ? lm[j].visibility : 0);
+    left += (v(J.lHip) + v(J.lKnee) + v(J.lAnkle)) / 3;
+    right += (v(J.rHip) + v(J.rKnee) + v(J.rAnkle)) / 3;
+    n++;
+  }
+  if (!n) return { left: 0, right: 0, better: 'left' };
+  left /= n; right /= n;
+  return { left, right, better: right > left ? 'right' : 'left' };
+}
+
+/**
+ * Where the camera stood. Sagittal angles (knee flexion, hip hinge, torso lean) are only trustworthy in a side
+ * view; front, back and oblique views foreshorten them in 2D, so treat them as rough estimates there.
+ * Face visibility cannot tell front from back (MediaPipe reports the face as visible from behind too). MediaPipe's
+ * "left" is the athlete's left, so the athlete faces the camera when x(left shoulder) > x(right shoulder).
+ */
+export function viewpoint(l: Landmarks): {
+  view: 'front' | 'back' | 'left' | 'right' | 'oblique'; nearSide: 'left' | 'right' | null; confidence: number;
+} {
+  const k = aspectK(l);
+  const sh: number[] = [], hip: number[] = [], torso: number[] = [], dxSh: number[] = [], dzSh: number[] = [], ear: number[] = [];
+  for (const f of frames(l)) {
+    const lm = f.landmarks;
+    if (!lm) continue;
+    const ls = lm[J.lShoulder], rs = lm[J.rShoulder], lh = lm[J.lHip], rh = lm[J.rHip];
+    if (!ls || !rs || !lh || !rh) continue;
+    const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot((a.x - b.x) * k, a.y - b.y);
+    sh.push(dist(ls, rs)); hip.push(dist(lh, rh)); torso.push(dist(mid(ls, rs), mid(lh, rh)));
+    dxSh.push(ls.x - rs.x); dzSh.push(ls.z - rs.z);
+    if (lm[7] && lm[8]) ear.push(lm[7].visibility - lm[8].visibility);
+  }
+  const t = median(torso);
+  if (!sh.length || !(t > 0)) return { view: 'oblique', nearSide: null, confidence: 0 };
+  const ratio = Math.max(median(sh), median(hip)) / t;
+  const dz = median(dzSh), dEar = ear.length ? median(ear) : 0;
+  // z(lSh) − z(rSh) < 0: the left shoulder is nearer the camera; when z is flat, the better-seen ear is the near one
+  const nearSide: 'left' | 'right' = dz < 0 ? 'left' : dz > 0 ? 'right' : dEar >= 0 ? 'left' : 'right';
+  const clamp = (x: number) => Math.max(0, Math.min(1, x));
+  if (ratio <= 0.3) return { view: nearSide, nearSide, confidence: clamp((0.3 - ratio) / 0.3) };
+  if (ratio >= 0.6) return { view: median(dxSh) > 0 ? 'front' : 'back', nearSide: null, confidence: clamp((ratio - 0.6) / 0.4) };
+  // Oblique: the same x(lSh) − x(rSh) sign says front-oblique (> 0) or back-oblique (< 0); the return type has no
+  // field for it, so callers that care can check it themselves.
+  return { view: 'oblique', nearSide, confidence: clamp(Math.min(ratio - 0.3, 0.6 - ratio) / 0.15) };
+}
+
 export default function analyze(l: Landmarks): ToolResult {
   const fs = frames(l);
   if (!fs.length) return { metrics: { personFrameRatio: 0 }, warnings: ['no frames'], usable: false };
