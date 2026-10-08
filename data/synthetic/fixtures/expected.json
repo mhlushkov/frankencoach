@@ -1,0 +1,48 @@
+{
+  "notes": "Known values of synthetic fixtures. Landmark angles are exact in pixel space (x*width, y*height). Table values: compare with ~5% tolerance.",
+  "squat": {
+    "file": "squat.landmarks.json",
+    "kneeAngleMin": 90,
+    "reps": 2
+  },
+  "freedive": {
+    "file": "freedive.landmarks.json",
+    "kickHz": 1.2,
+    "kneeAngleMean": 170,
+    "kickAmplitude": 0.08
+  },
+  "running": {
+    "file": "running.landmarks.json",
+    "strideHz": 2.5
+  },
+  "dive": {
+    "file": "dive-garmin-like.csv",
+    "maxDepthM": 25,
+    "descentRateMps": 0.9,
+    "bottomTimeSec": 5,
+    "totalSec": 90
+  },
+  "ride": {
+    "file": "ride-strava-like.csv",
+    "avgSpeedMps": 8.004,
+    "avgCadence": 85.211,
+    "totalSec": 600
+  },
+  "run": {
+    "file": "run-apple-like.csv",
+    "avgPaceMinPerKm": 5.2,
+    "avgHr": 151.008,
+    "totalSec": 600
+  },
+  "negatives": {
+    "static.landmarks.json": "no_motion",
+    "noHuman.landmarks.json": "no_human",
+    "garbage.landmarks.json": "no_human or low_confidence",
+    "jitter.landmarks.json": "low_confidence",
+    "lowVisibility.landmarks.json": "low_confidence",
+    "shopping-list.csv": "bad_table",
+    "empty.csv": "bad_table",
+    "no-time.csv": "bad_table",
+    "one-row.csv": "bad_table"
+  }
+}
