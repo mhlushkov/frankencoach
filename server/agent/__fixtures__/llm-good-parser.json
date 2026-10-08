@@ -1,0 +1,15 @@
+{
+  "manifest": {
+    "name": "garmin-dive-csv",
+    "kind": "parser",
+    "activity": "freediving",
+    "inputType": "raw:garmin-dive-csv",
+    "outputType": "session",
+    "description": "Garmin-like dive CSV (timestamp,depth_m,heart_rate_bpm,temp_c) → Session.",
+    "permissions": ["compute"]
+  },
+  "files": {
+    "index.ts": "import type { Session, Series } from '../../contracts/types';\nimport { parseCsvLoose, toSeconds } from '../series-core';\n\nexport const COLUMNS: Record<string, string> = { depth_m: 'depth_m', heart_rate_bpm: 'heart_rate_bpm', temp_c: 'temp_c' };\n\nexport default function parse(raw: string, meta: { filename: string }): Session {\n  const { header, rows } = parseCsvLoose(raw ?? '');\n  const ti = header.findIndex(h => /^timestamp$/i.test(h.trim()));\n  if (ti < 0 || !header.some(h => h.trim() === 'depth_m') || rows.length < 2) throw new Error('ParseError: expected timestamp,depth_m,... header');\n  const t0 = toSeconds(rows[0]![ti]!);\n  const series: Record<string, Series> = {};\n  header.forEach((h, ci) => {\n    const name = COLUMNS[h.trim().toLowerCase()];\n    if (ci === ti || !name) return;\n    const s: Series = { t: [], v: [] };\n    for (const row of rows) { const t = toSeconds(row[ti]!) - t0, v = row[ci]; if (Number.isFinite(t) && typeof v === 'number') { s.t.push(t); s.v.push(v); } }\n    if (s.v.length) series[name] = s;\n  });\n  const durationSec = Math.max(...Object.values(series).map(s => s.t[s.t.length - 1]!));\n  return { version: 1, source: 'garmin-dive-csv', activityHint: 'freediving', durationSec, series, meta: { filename: meta?.filename ?? '', formatSignature: [...header].map(h => h.trim()).sort().join(',') } };\n}\n",
+    "index.test.ts": "import { expect, test } from 'bun:test';\nimport sample from '../../data/synthetic/fixtures/dive-garmin-like.csv' with { type: 'text' };\nimport garbage from '../../data/synthetic/fixtures/shopping-list.csv' with { type: 'text' };\nimport parse from './index';\ntest('known value on sample', () => { const s = parse(sample, { filename: 'dive.csv' }); expect(s.series.depth_m).toBeDefined(); expect(s.durationSec).toBeGreaterThan(5); });\ntest('garbage throws ParseError', () => { expect(() => parse(garbage, { filename: 'x.csv' })).toThrow(/ParseError/); });\ntest('empty input throws, does not crash the process', () => { expect(() => parse('', { filename: '' })).toThrow(); });\n"
+  }
+}

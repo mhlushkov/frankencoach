@@ -1,0 +1,32 @@
+[
+  {
+    "manifest": {
+      "name": "freediving-technique",
+      "kind": "analyzer",
+      "activity": "freediving",
+      "inputType": "landmarks",
+      "outputType": "result",
+      "description": "Freediving technique (first, buggy attempt).",
+      "permissions": ["compute"]
+    },
+    "files": {
+      "index.ts": "import type { Landmarks, ToolResult } from '../../contracts/types';\nimport { visibilityStats } from '../pose-metrics';\nexport default function analyze(input: Landmarks): ToolResult {\n  const { personFrameRatio } = visibilityStats(input);\n  return { metrics: { personFrameRatio }, usable: true };\n}\n",
+      "index.test.ts": "import { expect, test } from 'bun:test';\nimport type { Landmarks } from '../../contracts/types';\nimport analyze from './index';\ntest('null input does not throw', () => { expect(analyze(null as unknown as Landmarks).usable).toBe(false); });\n"
+    }
+  },
+  {
+    "manifest": {
+      "name": "freediving-technique",
+      "kind": "analyzer",
+      "activity": "freediving",
+      "inputType": "landmarks",
+      "outputType": "result",
+      "description": "Freediving technique (fixed: guards null input).",
+      "permissions": ["compute"]
+    },
+    "files": {
+      "index.ts": "import type { Landmarks, ToolResult } from '../../contracts/types';\nimport { visibilityStats } from '../pose-metrics';\nexport default function analyze(input: Landmarks): ToolResult {\n  if (!input || !Array.isArray(input.frames) || input.frames.length === 0) return { metrics: {}, warnings: ['no frames'], usable: false };\n  const { personFrameRatio } = visibilityStats(input);\n  return { metrics: { personFrameRatio }, usable: personFrameRatio > 0.6 };\n}\n",
+      "index.test.ts": "import { expect, test } from 'bun:test';\nimport type { Landmarks } from '../../contracts/types';\nimport analyze from './index';\ntest('null input does not throw', () => { expect(analyze(null as unknown as Landmarks).usable).toBe(false); });\n"
+    }
+  }
+]

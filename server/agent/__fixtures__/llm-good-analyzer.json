@@ -1,0 +1,15 @@
+{
+  "manifest": {
+    "name": "freediving-technique",
+    "kind": "analyzer",
+    "activity": "freediving",
+    "inputType": "landmarks",
+    "outputType": "result",
+    "description": "Freediving finning technique: kick frequency, knee bend, body horizontality from BlazePose landmarks.",
+    "permissions": ["compute"]
+  },
+  "files": {
+    "index.ts": "import type { Landmarks, ToolResult } from '../../contracts/types';\n\nexport const MIN_VIS = 0.3;\n\n/** Mean |ankle_y - hip_y| in normalized units: a horizontal body keeps this small. */\nexport function hipAnkleSpread(l: Landmarks): number {\n  let sum = 0, n = 0;\n  for (const f of l.frames) {\n    const lm = f.landmarks;\n    if (!lm || !lm[23] || !lm[27] || lm[23].visibility < MIN_VIS || lm[27].visibility < MIN_VIS) continue;\n    sum += Math.abs(lm[27].y - lm[23].y); n++;\n  }\n  return n ? sum / n : 1;\n}\n\nexport default function analyze(input: Landmarks): ToolResult {\n  if (!input || !Array.isArray(input.frames) || input.frames.length === 0) {\n    return { metrics: {}, warnings: ['no frames'], usable: false };\n  }\n  const present = input.frames.filter(f => f.landmarks).length / input.frames.length;\n  const spread = hipAnkleSpread(input);\n  const usable = present > 0.6 && spread < 0.5;\n  return {\n    metrics: { personFrameRatio: +present.toFixed(3), hipAnkleSpread: +spread.toFixed(3) },\n    warnings: usable ? [] : ['finning pattern not found'],\n    usable,\n  };\n}\n",
+    "index.test.ts": "import { describe, expect, test } from 'bun:test';\nimport type { Landmarks } from '../../contracts/types';\nimport analyze, { hipAnkleSpread } from './index';\n\nfunction frame(t: number, hipY: number, ankleY: number) {\n  const landmarks = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 1 }));\n  landmarks[23] = { x: 0.5, y: hipY, z: 0, visibility: 1 };\n  landmarks[27] = { x: 0.5, y: ankleY, z: 0, visibility: 1 };\n  return { t, landmarks };\n}\nconst horizontal: Landmarks = { version: 1, source: 'synthetic', videoHash: 'h', width: 1920, height: 1080, durationSec: 1, fps: 10, frames: Array.from({ length: 10 }, (_, i) => frame(i / 10, 0.5, 0.52)) };\n\ndescribe('freediving-technique', () => {\n  test('known value on synthetic horizontal body', () => {\n    const r = analyze(horizontal);\n    expect(r.usable).toBe(true);\n    expect(Math.abs(hipAnkleSpread(horizontal) - 0.02)).toBeLessThan(1e-6);\n  });\n  test('garbage input → usable:false', () => {\n    const g: Landmarks = { ...horizontal, frames: horizontal.frames.map(f => ({ t: f.t, landmarks: null })) };\n    expect(analyze(g).usable).toBe(false);\n  });\n  test('empty / null input does not throw', () => {\n    expect(analyze(null as unknown as Landmarks).usable).toBe(false);\n    expect(analyze({ frames: [] } as unknown as Landmarks).usable).toBe(false);\n  });\n});\n"
+  }
+}
