@@ -50,6 +50,23 @@ describe('table fixtures', () => {
   });
 });
 
+
+// Recursive equality that tolerates last-ulp float differences across platforms.
+function expectClose(a: unknown, b: unknown): void {
+  if (typeof a === 'number' && typeof b === 'number') { expect(a).toBeCloseTo(b, 9); return; }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    expect(a.length).toBe(b.length);
+    for (let i = 0; i < a.length; i++) expectClose(a[i], b[i]);
+    return;
+  }
+  if (a && b && typeof a === 'object' && typeof b === 'object') {
+    expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort());
+    for (const k of Object.keys(a)) expectClose((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]);
+    return;
+  }
+  expect(a).toEqual(b);
+}
+
 describe('committed fixtures', () => {
   test('expected.json valid and up to date', () => {
     const p = join(FIXTURES_DIR, 'expected.json');
@@ -61,7 +78,8 @@ describe('committed fixtures', () => {
 
   test('all fixture files exist and match generators', () => {
     for (const [name, make] of Object.entries(landmarkFixtures)) {
-      expect(readFileSync(join(FIXTURES_DIR, `${name}.landmarks.json`), 'utf8')).toBe(JSON.stringify(make()));
+      // deep compare with float tolerance: libm (sin/cos) differs in the last ulp between macOS and Linux CI
+      expectClose(JSON.parse(readFileSync(join(FIXTURES_DIR, `${name}.landmarks.json`), 'utf8')), JSON.parse(JSON.stringify(make())));
     }
     expect(readFileSync(join(FIXTURES_DIR, 'dive-garmin-like.csv'), 'utf8')).toBe(makeDiveCsv());
     expect(readFileSync(join(FIXTURES_DIR, 'ride-strava-like.csv'), 'utf8')).toBe(makeRideCsv());
