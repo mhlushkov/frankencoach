@@ -14,7 +14,7 @@ import { plan, type FindFn } from './planner';
 
 // ---------- dependency surface (A3/A7/A9/A10 are injected; tests pass fakes) ----------
 export type Rejection = { ok: false; reason: string; text: string; tips: string[]; stats?: Record<string, unknown> };
-export type LandmarksValidity = { ok: true; stats?: Record<string, unknown> } | Rejection;
+export type LandmarksValidity = { ok: true; stats?: Record<string, unknown>; landmarks?: Landmarks } | Rejection;
 export type TableValidity =
   | { ok: true; header: string[]; rows: number; numericCols: number; timeCol?: string }
   | Rejection;
@@ -116,12 +116,14 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
   // 2. validity ($0) → 3. classify / sniff (cheap model)
   let activity: string; let how: 'exact' | 'synonym' | 'new' = 'new'; let formatId: string | undefined;
   let sampleStats: Record<string, unknown> | undefined; let head30: string | undefined;
+  let landmarks: Landmarks | undefined; // the gate's healed (smoothed) copy when it made one, else the raw input
   if (input.kind === 'landmarks') {
     yield { type: 'thinking', text: 'Checking the landmarks: person present, motion, stability…' };
     const v = deps.validity.checkLandmarks(input.landmarks);
     if (!v.ok) { yield reject(mapReason(v.reason), v.text, v.tips); return; }
     sampleStats = v.stats;
-    yield { type: 'thinking', text: 'Identifying the activity…' };
+    landmarks = v.landmarks ?? input.landmarks;
+    yield { type: 'thinking', text: v.stats?.smoothed === true ? 'Smoothed a shaky skeleton, identifying the activity…' : 'Identifying the activity…' };
     if (budget.exceeded) { yield { type: 'error', text: `Session budget of $${budget.limit.toFixed(2)} is used up.` }; return; }
     const c = await deps.classify({ message: req.message, sportHint: req.sportHint, frames: input.frames, stats: v.stats, knownActivities: deps.registry.knownActivities() });
     yield cost('classify', c.llm);
@@ -155,7 +157,7 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
   const chain: ChainStep[] = plan(input, { activity, formatId }, deps.registry.find);
   yield { type: 'plan', chain };
   const grownHere = new Set<string>();
-  const initial: ToolInput = input.kind === 'landmarks' ? input.landmarks : { raw: input.text, filename: input.filename };
+  const initial: ToolInput = input.kind === 'landmarks' ? (landmarks ?? input.landmarks) : { raw: input.text, filename: input.filename };
 
   // 5. missing capability → one confirmation for the whole chain
   const missing = chain.map((s, i) => [s, i] as const).filter(([s]) => s.missing);

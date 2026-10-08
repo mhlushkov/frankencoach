@@ -179,6 +179,28 @@ describe('analyze loop', () => {
     expect(seen).toEqual([squat]);
   });
 
+  test('gate healed the landmarks → tools analyze the smoothed copy', async () => {
+    const { deps } = fakeDeps([poseMetrics, squatTool]);
+    const HEALED = { ...(squat as Landmarks), frames: (squat as Landmarks).frames.slice(0, 3) };
+    deps.validity.checkLandmarks = () => ({ ok: true, stats: { smoothed: true }, landmarks: HEALED });
+    const seen: unknown[] = [];
+    deps.runTool = async (_name, input) => { seen.push(input); return okResult; };
+    const ev = await collect({ sessionId: 's8', message: 'squat', input: { kind: 'landmarks', landmarks: squat as Landmarks } }, deps);
+    expect(seen).toEqual([HEALED]);
+    expect(seen[0]).not.toBe(squat);
+    expect(ev.some((e) => e.type === 'thinking' && e.text.includes('Smoothed'))).toBe(true);
+  });
+
+  test('gate ok without landmarks → tools analyze the raw landmarks', async () => {
+    const { deps } = fakeDeps([poseMetrics, squatTool]);
+    const seen: unknown[] = [];
+    deps.runTool = async (_name, input) => { seen.push(input); return okResult; };
+    const ev = await collect({ sessionId: 's9', message: 'squat', input: { kind: 'landmarks', landmarks: squat as Landmarks } }, deps);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toBe(squat as Landmarks);
+    expect(ev.some((e) => e.type === 'thinking' && e.text.includes('Smoothed'))).toBe(false);
+  });
+
   test('usable:false → rejected not_a_sport, no answer', async () => {
     const { deps } = fakeDeps([poseMetrics, squatTool]);
     deps.runTool = async () => ({ metrics: {}, usable: false, warnings: ['no squat pattern'] });
