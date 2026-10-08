@@ -35,7 +35,10 @@ export function CoachScreen({ user }: { user: User }) {
   const latest = useRef(state)
   useEffect(() => { latest.current = state })
   useEffect(() => () => { ac.current?.abort() }, [])
-  useEffect(() => () => { if (media?.kind === 'video') URL.revokeObjectURL(media.url) }, [media])
+  // Revoke the blob URL only when it actually changes (new file / new chat). Keying this on `media` revoked it the
+  // moment extraction attached `landmarks` (same url, new object), so playback froze a few seconds in.
+  const videoUrl = media?.kind === 'video' ? media.url : undefined
+  useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl) }, [videoUrl])
 
   const busy = working || !selectors.canSend(state)
   const showHow = useHowItWorks(state.messages.length)
