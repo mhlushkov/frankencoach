@@ -113,17 +113,73 @@ describe('registry', () => {
     expect(knownActivities(root).sort()).toEqual(['freediving', 'kettlebell-swing', 'squat']);
   });
 
-  test('apiSummary returns export lines only, ≤ 60', () => {
+  test('apiSummary returns exported declarations only, ≤ 120 lines', () => {
     const src = ['import x from "y";', 'export const A = 1;', 'const hidden = 2;', 'export function f(a: number): number {', '  return a;', '}',
-      ...Array.from({ length: 80 }, (_, i) => `export const k${i} = ${i};`)].join('\n');
+      ...Array.from({ length: 150 }, (_, i) => `export const k${i} = ${i};`)].join('\n');
     writeTool(poseMetrics, src);
     const s = apiSummary('pose-metrics', root);
     const lines = s.split('\n');
     expect(lines[0]).toBe('export const A = 1;');
     expect(lines[1]).toBe('export function f(a: number): number {');
     expect(s).not.toContain('hidden');
-    expect(lines.length).toBeLessThanOrEqual(60);
+    expect(s).not.toContain('return a');
+    expect(lines.length).toBe(120);
     expect(apiSummary('nope', root)).toBe('');
+  });
+
+  test('apiSummary: whole headers, whole type declarations, referenced private types, caps', () => {
+    const big = ['export interface Big {', ...Array.from({ length: 28 }, (_, i) => `  f${i}: number;`), '}'];
+    const src = [
+      "import type { Landmarks } from '../../contracts/types';",
+      'type Secret = string;',
+      'type Unit = { v: number };',
+      'export const f = (a: number): { x: number } => {',
+      '  return { x: a };',
+      '};',
+      'export function g(a: number): Promise<Array<{ x: number }>> {',
+      '  return Promise.resolve([{ x: a }]);',
+      '}',
+      'export const CFG = {',
+      '  a: 1,',
+      '};',
+      'export type Pair = { a: number; b: number };',
+      ...big,
+      'export function h(',
+      '  u: Unit,',
+      '): number {',
+      '  return u.v;',
+      '}',
+    ].join('\n');
+    writeTool(poseMetrics, src);
+    const lines = apiSummary('pose-metrics', root).split('\n');
+    const at = (l: string) => lines.indexOf(l);
+    expect(at('export const f = (a: number): { x: number } => {')).toBe(0);
+    expect(lines[1]).toBe('export function g(a: number): Promise<Array<{ x: number }>> {');
+    expect(lines.slice(2, 5)).toEqual(['export const CFG = {', '  a: 1,', '};']);
+    expect(lines[5]).toBe('export type Pair = { a: number; b: number };');
+    expect(lines.slice(6, 18)).toEqual(['export interface Big {', ...Array.from({ length: 10 }, (_, i) => `  f${i}: number;`), '// …']);
+    expect(lines.slice(18, 21)).toEqual(['export function h(', '  u: Unit,', '): number {']);
+    expect(lines.slice(21)).toEqual(['// not exported, shown for reference', 'type Unit = { v: number };']);
+    expect(lines.join('\n')).not.toContain('Secret');
+    expect(lines.join('\n')).not.toContain('return');
+  });
+
+  test('apiSummary on the real pose-metrics shows whole signatures and the types they name', () => {
+    const repo = join(import.meta.dir, '..', '..');
+    const s = apiSummary('pose-metrics', repo);
+    const lines = s.split('\n');
+    const cut = lines.findIndex(l => l.includes('cutRanges: { fromSec: number; toSec: number }[]'));
+    expect(cut).toBeGreaterThan(0);
+    expect(lines[cut - 1]).toBe('export function coverage(l: Landmarks, margin = 0.01): {');
+    expect(lines[cut + 1]).toBe('} {');
+    expect(s).toContain('partialStart: boolean');
+    expect(s).toContain("view: 'front' | 'back' | 'left' | 'right' | 'oblique'");
+    const ref = lines.indexOf('// not exported, shown for reference');
+    expect(ref).toBeGreaterThan(0);
+    expect(lines[ref + 1]).toBe('type Num = number | null;');
+    expect(lines).toContain("export function legVisibility(l: Landmarks): { left: number; right: number; better: 'left' | 'right' } {");
+    expect(s).not.toContain('let left = 0');
+    expect(lines.length).toBeLessThanOrEqual(120);
   });
 
   test('real repo: syncFromDisk picks up human tools; templates stay out', () => {
