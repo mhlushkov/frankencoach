@@ -17,13 +17,14 @@ Their exact export lines and an example tool are included below. Import ONLY fro
 
 ## Rep counting and what the camera shows
 For landmark tools, follow these rules. They keep the coach honest about what one phone camera can measure.
-- Count reps, strokes and jumps with `countReps(series, fps)`. Never build hysteresis bands or thresholds from the clip's global min/max: a stand-up or walk-in at either end of the clip moves them and merges or invents reps.
+- Count reps, strokes and jumps with `countReps(series, fps)`; it returns `{ count, bottoms, tops, partialStart, partialEnd, depthPerRep }` (`bottoms` / `tops` are frame indices). Never build hysteresis bands or thresholds from the clip's global min/max: a stand-up or walk-in at either end of the clip moves them and merges or invents reps.
 - Report `partialReps` (0, 1 or 2) from `partialStart` / `partialEnd`, and never count partial reps in the rep count.
-- Call `legVisibility(input)` and compute joint angles on the `better` leg.
+- Call `legVisibility(input)`; it returns `{ left, right, better }`. Compute joint angles on the `better` leg.
 - Report per-side metrics (symmetry, left/right differences) only when both `left` and `right` visibility are >= 0.6. Otherwise skip them and add the warning `only the <left|right> leg was clearly visible, so I did not compare sides`.
-- Call `coverage(input)`. When `inFrameRatio < 0.9`, add the warning `the camera cut you off from <a> s to <b> s, I ignored those seconds` (one per `cutRanges` entry, seconds rounded to 0.1) and leave the `cutFrames` out of angle statistics (min/max/mean, depth, lean). Keep those frames in the rep count.
-- Call `viewpoint(input)`. When `view` is not `'left'` or `'right'` (not a side view), add the suffix `Est` to the keys of sagittal-plane metrics (depth as knee flexion, torso lean, hip hinge; e.g. `kneeAngleMinEst`, `torsoLeanEst`) and add the warning `filmed from the <view>, so <metric names> are rough estimates; film from the side for those`.
+- Call `coverage(input)`; it returns `{ inFrameRatio, cutFrames, cutRanges }` and every `cutRanges` entry is `{ fromSec, toSec }` (seconds, not frames). When `inFrameRatio < 0.9`, add one warning per entry, built exactly as `` `the camera cut you off from ${r.fromSec.toFixed(1)} s to ${r.toSec.toFixed(1)} s, I ignored those seconds` `` and leave the `cutFrames` out of angle statistics (min/max/mean, depth, lean). Keep those frames in the rep count.
+- Call `viewpoint(input)`; it returns `{ view, nearSide, confidence }`. When `view` is not `'left'` or `'right'` (not a side view), add the suffix `Est` to the keys of sagittal-plane metrics (depth as knee flexion, torso lean, hip hinge; e.g. `kneeAngleMinEst`, `torsoLeanEst`) and add the warning `filmed from the <view>, so <metric names> are rough estimates; film from the side for those`.
 - Warnings are plain English sentences the coach reads to the athlete.
+- Use these field names exactly as written above. Never guess alternative names, never cast a helper result to `any`, never default a missing field to 0: a wrong name silently turns a true warning into "0.0 s to 0.0 s".
 
 ## Hard limits (the authority check rejects the tool otherwise)
 - Compute only. Forbidden anywhere in the source, including comments and tests: `fetch(`, `http`, `fs`, `node:`, `child_process`, `Bun.spawn`, `Bun.write`, `Bun.file`, `process.env`, `eval(`, `Function(`, dynamic `import(`, `require(`, `WebSocket`, `XMLHttpRequest`.
