@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { activityFrom, diaryLine, isStage } from './diary'
 import { metricRows, showReuse } from './format'
 import type { AgentEvent, AppState, ChatMessage } from '../../../../contracts/types'
 import { Frame } from '../lib/Frame'
@@ -66,7 +67,9 @@ export function Conversation({ state, choice, working, onLearn, onDecline, askPe
   let lastUser = -1
   state.messages.forEach((m, i) => { if (m.role === 'user') lastUser = i })
   const past: ChatMessage[] = state.messages.slice(0, lastUser + 1)
-  const lastGrowing = state.events.reduce((n, e, i) => (e.type === 'growing' ? i : n), -1)
+  const lastStage = state.events.reduce((n, e, i) => (isStage(e) ? i : n), -1)
+  const installedAfter = state.events.some((e, i) => i > lastStage && e.type === 'tool_installed')
+  const inputWord = state.input?.kind === 'landmarks' ? 'clip' : 'file'
   const busy = working || state.status === 'analyzing' || state.status === 'extracting'
 
   const rows: ReactNode[] = []
@@ -106,14 +109,14 @@ export function Conversation({ state, choice, working, onLearn, onDecline, askPe
           </Row>,
         )
         break
-      case 'growing': {
-        const live = busy && i === lastGrowing
-        rows.push(<Row key={key} tag="Learning" tone="learn" live={live} pulse={live}>{label(e.attempt > 1 ? `Learning ${sportName(state.pending?.activity ?? e.name).toLowerCase()}… My first try wasn't good enough, so I'm trying again.` : `Learning ${sportName(state.pending?.activity ?? e.name).toLowerCase()}…`)}</Row>)
+      case 'growing': case 'authority_check': case 'test_result': case 'tool_installed': {
+        // the learning diary: every step the server reports, in the member's words (see diary.ts)
+        const line = diaryLine(e, { activity: state.pending?.activity ?? (e.type === 'tool_installed' ? e.manifest.activity : e.type === 'growing' ? activityFrom(e.text) ?? e.name : e.name), input: inputWord })
+        if (!line) break
+        const live = busy && i === lastStage && !installedAfter
+        rows.push(<Row key={key} tag={line.tag} tone={line.tone} live={live} pulse={live}>{label(line.text)}{line.detail && <div className="muted t14">{line.detail}</div>}</Row>)
         break
       }
-      case 'tool_installed':
-        if (e.manifest.createdBy === 'agent') rows.push(<Row key={key} tag="Learned" tone="ok">{label(`I've learned ${sportName(e.manifest.activity === '*' ? e.manifest.name : e.manifest.activity).toLowerCase()}, for you and everyone else on FrankenCoach.`)}</Row>)
-        break
       case 'tool_used':
         if (Object.keys(e.result.metrics).length) rows.push(<Row key={key} tag="Your workout" tone="ok"><Metrics metrics={e.result.metrics} warnings={e.result.warnings} /></Row>)
         break
@@ -141,7 +144,7 @@ export function Conversation({ state, choice, working, onLearn, onDecline, askPe
         rows.push(<Row key={key} tag="Sorry" tone="fail">{label("Something went wrong on my side. Please try again in a moment.", '#ff8a83')}</Row>)
         break
       default:
-        break // plan, test_result, authority_check, parsed, cost: evidence for the dev console, not for members
+        break // plan, parsed, cost: evidence for the dev console, not for members
     }
   })
 
