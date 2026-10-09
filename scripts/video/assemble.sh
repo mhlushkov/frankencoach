@@ -9,8 +9,11 @@ usage: scripts/video/assemble.sh [-h]
   For each shot in docs/video/shots.json: trim (start, duration x speed), scale + letterbox to 1920x1080 in #0a0c0d,
   caption bottom-left (Barlow Condensed 44 px, colour per shot, black box), voice-over docs/media/vo/<shot>.m4a.
   Shot length = max(duration, voice-over + 0.4 s). Missing raw clip -> labelled testsrc2 placeholder + WARNING.
-  Adds a 3-s title card and a 3-s end card, hard cuts. Exits 1 if the result is longer than 90.0 s.
-  Env: SHOTS (docs/video/shots.json), RAW_DIR (docs/media/raw), VO_DIR (docs/media/vo), OUT_DIR (docs/media).
+  Adds a 3-s title card and a 3-s end card; every segment fades from and to black (FADE s, default 0.25).
+  Music bed docs/media/music/bed.mp3 (scripts/video/music.sh), if present, is looped under the whole video at
+  MUSIC_VOL (default 0.5) and ducked under the voice. Exits 1 if the result is longer than 90.0 s.
+  Env: SHOTS (docs/video/shots.json), RAW_DIR (docs/media/raw), VO_DIR (docs/media/vo), OUT_DIR (docs/media),
+  MUSIC (docs/media/music/bed.mp3; MUSIC=none for no music), MUSIC_VOL, FADE.
 EOF
 }
 [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && { usage; exit 0; }
@@ -20,6 +23,9 @@ SHOTS="${SHOTS:-$ROOT/docs/video/shots.json}"
 RAW_DIR="${RAW_DIR:-$ROOT/docs/media/raw}"
 VO_DIR="${VO_DIR:-$ROOT/docs/media/vo}"
 OUT_DIR="${OUT_DIR:-$ROOT/docs/media}"
+MUSIC="${MUSIC:-$ROOT/docs/media/music/bed.mp3}"
+MUSIC_VOL="${MUSIC_VOL:-0.5}"
+FADE="${FADE:-0.25}"
 RENDER="$ROOT/scripts/video/render-text.js"
 export FC_FONT_DIR="$ROOT/web/src/styles/fonts"
 MAX_SECONDS=90.0
@@ -42,10 +48,14 @@ colour_hex() {
   esac
 }
 
+fades() { # $1 segment seconds -> video filter for a fade from black and back to black
+  echo "fade=t=in:st=0:d=$FADE,fade=t=out:st=$(calc "$1 - $FADE"):d=$FADE"
+}
+
 card() { # $1 out.mp4, $2 seconds, $3 line1, $4 line2
   osascript -l JavaScript "$RENDER" card "$3" "$4" "$BUILD/card.png" > /dev/null
   "${FF[@]}" -loop 1 -framerate "$FPS" -i "$BUILD/card.png" -f lavfi -i anullsrc=r=48000:cl=stereo \
-    -t "$2" -vf "format=yuv420p" "${VENC[@]}" "${AENC[@]}" "$1"
+    -t "$2" -vf "format=yuv420p,$(fades "$2")" "${VENC[@]}" "${AENC[@]}" "$1"
 }
 
 # Plan: one line per shot, fields split by \x1f (a tab would collapse empty fields in read).
@@ -101,7 +111,7 @@ while IFS=$'\x1f' read -r shot file alt start duration speed caption colour; do
   if [[ -n "$vo" ]]; then ain=(-i "$vo"); else ain=(-f lavfi -i anullsrc=r=48000:cl=stereo); fi
 
   "${FF[@]}" "${vin[@]}" -loop 1 -i "$BUILD/cap.png" "${ain[@]}" ${extra[@]+"${extra[@]}"} \
-    -filter_complex "$vchain;[base][1:v]overlay=x=64:y=H-h-64,format=yuv420p[v];[2:a]aresample=48000,aformat=channel_layouts=stereo,adelay=150:all=1,apad[a]" \
+    -filter_complex "$vchain;[base][1:v]overlay=x=64:y=H-h-64,format=yuv420p,$(fades "$len")[v];[2:a]aresample=48000,aformat=channel_layouts=stereo,adelay=150:all=1,apad[a]" \
     -map "[v]" -map "[a]" -t "$len" "${VENC[@]}" "${AENC[@]}" "$seg"
   echo "file '$seg'" >> "$BUILD/list.txt"
   printf '%-13s %6.2fs  vo %5.2fs  src %s\n' "$shot" "$len" "$vo_len" "$([[ -n "$src" ]] && basename "$src" || echo PLACEHOLDER)"
@@ -112,7 +122,17 @@ card "$BUILD/seg-$(printf '%03d' "$n").mp4" "$e_dur" "$e1" "$e2"
 echo "file '$BUILD/seg-$(printf '%03d' "$n").mp4'" >> "$BUILD/list.txt"
 echo "end    ${e_dur}s"
 
-"${FF[@]}" -f concat -safe 0 -i "$BUILD/list.txt" -c copy -movflags +faststart "$OUT_DIR/demo.mp4"
+if [[ "$MUSIC" != "none" && -f "$MUSIC" ]]; then
+  "${FF[@]}" -f concat -safe 0 -i "$BUILD/list.txt" -c copy "$BUILD/joined.mp4"
+  # The voice keys a compressor on the music, so the bed drops while someone speaks and comes back in pauses.
+  "${FF[@]}" -i "$BUILD/joined.mp4" -stream_loop -1 -i "$MUSIC" -filter_complex \
+    "[0:a]asplit=2[vo][key];[1:a]aresample=48000,aformat=channel_layouts=stereo,volume=$MUSIC_VOL[m];[m][key]sidechaincompress=threshold=0.02:ratio=8:attack=30:release=600[md];[vo][md]amix=inputs=2:duration=first:normalize=0,afade=t=out:st=$(calc "$(dur "$BUILD/joined.mp4") - 1.5"):d=1.5[a]" \
+    -map 0:v -map "[a]" -c:v copy "${AENC[@]}" -movflags +faststart "$OUT_DIR/demo.mp4"
+  echo "music  $(basename "$MUSIC") at volume $MUSIC_VOL, ducked under the voice"
+else
+  "${FF[@]}" -f concat -safe 0 -i "$BUILD/list.txt" -c copy -movflags +faststart "$OUT_DIR/demo.mp4"
+  echo "music  none"
+fi
 "${FF[@]}" -i "$OUT_DIR/demo.mp4" -vf "scale=1280:720" -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p \
   -c:a copy -movflags +faststart "$OUT_DIR/demo-720p.mp4"
 

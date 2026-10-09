@@ -7,7 +7,8 @@ usage() {
 usage: scripts/video/tts.sh [-h]
   Writes one m4a per entry of docs/video/voiceover.json (uses "speak" if present, else "text").
   ELEVENLABS_API_KEY set  -> ElevenLabs eleven_multilingual_v2 (about $0.10 per 1 000 characters, ~900 chars total)
-      narrator voice ELEVENLABS_VOICE_ID       (default JBFqnCBsd6RMkjVDRZzb)
+      narrator voice ELEVENLABS_VOICE_ID       (default N2lVS1w4EtoT3dr4eOWO, Callum: low, husky)
+      narrator read  ELEVENLABS_STABILITY 0.35, ELEVENLABS_STYLE 0.35
       coach voice    ELEVENLABS_COACH_VOICE_ID (default 21m00Tcm4TlvDq8ikWAM)
   otherwise               -> macOS say, free: narrator ${TTS_VOICE:-Samantha}, coach ${TTS_COACH_VOICE:-Daniel}, 170 wpm
   VO_FILE (default docs/video/voiceover.json), VO_DIR (default docs/media/vo).
@@ -35,9 +36,13 @@ echo "tts engine: $engine" >&2
 while IFS=$'\t' read -r shot voice text; do
   out="$VO_DIR/$shot.m4a"
   if [[ "$engine" == "elevenlabs" ]]; then
-    vid="${ELEVENLABS_VOICE_ID:-JBFqnCBsd6RMkjVDRZzb}"
+    vid="${ELEVENLABS_VOICE_ID:-N2lVS1w4EtoT3dr4eOWO}"
     [[ "$voice" == "coach" ]] && vid="${ELEVENLABS_COACH_VOICE_ID:-21m00Tcm4TlvDq8ikWAM}"
-    TEXT="$text" bun -e 'console.log(JSON.stringify({ text: process.env.TEXT, model_id: "eleven_multilingual_v2" }))' < /dev/null > "$TMP/body.json"
+    # Narrator: lower stability and some style for a slower, darker read; the coach keeps the API defaults.
+    STAB="${ELEVENLABS_STABILITY:-0.35}" STYLE="${ELEVENLABS_STYLE:-0.35}" ROLE="$voice" TEXT="$text" bun -e '
+const b = { text: process.env.TEXT, model_id: "eleven_multilingual_v2" }
+if (process.env.ROLE !== "coach") b.voice_settings = { stability: +process.env.STAB, similarity_boost: 0.8, style: +process.env.STYLE }
+console.log(JSON.stringify(b))' < /dev/null > "$TMP/body.json"
     # The key goes to curl through a process-substitution header file, never argv or stdout.
     code=$(curl -sS -o "$TMP/$shot.mp3" -w '%{http_code}' -X POST \
       "https://api.elevenlabs.io/v1/text-to-speech/$vid?output_format=mp3_44100_128" \

@@ -32,7 +32,7 @@
     {
       "shot": "03-learn",
       "file": "03-learn.mov",
-      "start": 6.0,
+      "start": 6,
       "duration": 14,
       "speed": 1.4,
       "caption": "Writes, tests, tries, checks rights, installs",
@@ -50,11 +50,11 @@
     {
       "shot": "05-two-people",
       "file": "05-two-people.mov",
-      "start": 84,
+      "start": 86.3,
       "duration": 12,
       "caption": "AI clip, two people: asks, then reuses",
       "colour": "amber",
-      "speed": 1.15
+      "speed": 1.4
     },
     {
       "shot": "06-bad-file",
