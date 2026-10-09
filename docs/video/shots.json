@@ -1,16 +1,93 @@
 {
   "_doc": "Machine copy of SHOTLIST.md for scripts/video/assemble.sh. file/alt: names in docs/media/raw (first that exists wins; broll-* gets '(AI-generated)' appended to its caption). start: seconds into the source. duration: output seconds before voice-over stretch. speed: source seconds per output second (default 1). colour: green worked/reused, amber learning, red refused, grey human/neutral.",
-  "title": { "duration": 3, "line1": "FrankenCoach", "line2": "the coach that learns any sport you show it" },
-  "end": { "duration": 3, "line1": "github.com/mhlushkov/frankencoach", "line2": "built from scratch 21:00 → 07:14" },
+  "title": {
+    "duration": 3,
+    "line1": "FrankenCoach",
+    "line2": "the coach that learns any sport you show it"
+  },
+  "end": {
+    "duration": 3,
+    "line1": "github.com/mhlushkov/frankencoach",
+    "line2": "built from scratch 21:00 → 07:14"
+  },
   "shots": [
-    { "shot": "01-dusk", "file": "broll-dusk.mp4", "alt": "01-dusk.mov", "start": 0, "duration": 6, "caption": "Dusk: sees bodies, reads tables, no sport", "colour": "grey" },
-    { "shot": "02-gap", "file": "02-gap.mov", "start": 0, "duration": 8, "caption": "New sport: it asks before learning", "colour": "amber" },
-    { "shot": "03-learn", "file": "03-learn.mov", "start": 0, "duration": 14, "speed": 4, "caption": "Writes, tests, checks rights, installs (sped up)", "colour": "amber" },
-    { "shot": "04-honest", "file": "04-honest.mov", "start": 0, "duration": 12, "caption": "Advice from numbers, and what it missed", "colour": "green" },
-    { "shot": "05-two-people", "file": "05-two-people.mov", "start": 0, "duration": 12, "caption": "AI clip, two people: asks, then reuses", "colour": "amber" },
-    { "shot": "06-bad-file", "file": "06-bad-file.mov", "start": 0, "duration": 7, "caption": "Not a workout: refused for $0", "colour": "red" },
-    { "shot": "07-refuse", "file": "07-refuse.mov", "start": 0, "duration": 8, "caption": "Medical question: refused, rights unchanged", "colour": "red" },
-    { "shot": "08-overnight", "file": "08-overnight.mov", "start": 0, "duration": 9, "caption": "Learned overnight by itself, under $0.15 each", "colour": "green" },
-    { "shot": "09-dawn", "file": "broll-dawn.mp4", "alt": "09-dawn.mov", "start": 0, "duration": 6, "caption": "Dawn: new skills, same rights", "colour": "grey" }
+    {
+      "shot": "01-dusk",
+      "file": "broll-dusk.mp4",
+      "alt": "01-dusk.mov",
+      "start": 0,
+      "duration": 6,
+      "caption": "Dusk: sees bodies, reads tables, no sport",
+      "colour": "grey"
+    },
+    {
+      "shot": "02-gap",
+      "file": "02-gap.mov",
+      "start": 0,
+      "duration": 8,
+      "caption": "New sport: it asks before learning",
+      "colour": "amber",
+      "speed": 0.7
+    },
+    {
+      "shot": "03-learn",
+      "file": "03-learn.mov",
+      "start": 6.0,
+      "duration": 14,
+      "speed": 1.4,
+      "caption": "Writes, tests, tries, checks rights, installs",
+      "colour": "amber"
+    },
+    {
+      "shot": "04-honest",
+      "file": "04-honest.mov",
+      "start": 25.5,
+      "duration": 9,
+      "caption": "Advice from numbers, and its limits",
+      "colour": "green",
+      "speed": 1
+    },
+    {
+      "shot": "05-two-people",
+      "file": "05-two-people.mov",
+      "start": 84,
+      "duration": 12,
+      "caption": "AI clip, two people: asks, then reuses",
+      "colour": "amber",
+      "speed": 1.15
+    },
+    {
+      "shot": "06-bad-file",
+      "file": "06-bad-file.mov",
+      "start": 0,
+      "duration": 7,
+      "caption": "Not a workout: refused for $0",
+      "colour": "red"
+    },
+    {
+      "shot": "07-refuse",
+      "file": "07-refuse.mov",
+      "start": 0,
+      "duration": 8,
+      "caption": "Medical question: refused, rights unchanged",
+      "colour": "red"
+    },
+    {
+      "shot": "08-overnight",
+      "file": "08-overnight.mov",
+      "start": 0,
+      "duration": 9,
+      "caption": "Learned overnight by itself, under $0.15 each",
+      "colour": "green"
+    },
+    {
+      "shot": "09-dawn",
+      "file": "broll-dawn.mp4",
+      "alt": "09-dawn.mov",
+      "start": 0,
+      "duration": 6,
+      "caption": "Dawn: new skills, same rights",
+      "colour": "grey"
+    }
   ]
 }
