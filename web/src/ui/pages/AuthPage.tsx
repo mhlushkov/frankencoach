@@ -2,12 +2,15 @@ import { useState, type FormEvent } from 'react'
 import { Frame, Logo } from '../lib/Frame'
 import { go } from '../lib/route'
 import { signIn, signUp } from '../lib/account'
+import { consentError, makeConsent } from '../lib/consent'
+import { ConsentFields } from '../lib/ConsentFields'
 
 export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [consent, setConsent] = useState({ notice: false, health: false })
   const isIn = mode === 'signin'
 
   function submit(e: FormEvent) {
@@ -20,7 +23,9 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
       else go('coach')
     } else {
       if (!name.trim()) return setError('Enter your name.')
-      const r = signUp(name, email)
+      const why = consentError(consent)
+      if (why) return setError(why)
+      const r = signUp(name, email, makeConsent())
       if ('error' in r) setError(r.error)
       else go('body')
     }
@@ -53,6 +58,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'signup' }) {
           {!isIn && <div className="field"><label htmlFor="n">Your name</label><input id="n" className="input lg" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></div>}
           <div className="field"><label htmlFor="e">Email</label><input id="e" className="input lg" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></div>
           <div className="field"><label htmlFor="p">Password</label><input id="p" className="input lg" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={isIn ? 'current-password' : 'new-password'} /></div>
+          {!isIn && <ConsentFields value={consent} onChange={setConsent} />}
           {error && <span className="t14" role="alert" style={{ color: 'var(--fc-fail)' }}>{error}</span>}
           <Frame className="btn-frame"><button className="btn btn-primary btn-lg block" type="submit">{isIn ? 'Sign in' : 'Continue'}</button></Frame>
           <span className="muted t15 center">{isIn ? <>New here? <a href="#/signup">Create an account</a></> : <>Already a member? <a href="#/signin">Sign in</a></>}</span>

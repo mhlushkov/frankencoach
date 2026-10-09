@@ -13,6 +13,9 @@ import { AuthPage } from './pages/AuthPage'
 import { BodyPage } from './pages/BodyPage'
 import { AccountPage } from './pages/AccountPage'
 import { OwnerPage } from './pages/OwnerPage'
+import { PrivacyPage } from './pages/PrivacyPage'
+import { ConsentPage } from './pages/ConsentPage'
+import { hasConsent } from './lib/consent'
 
 export function Shell() {
   const [state, dispatch] = useReducer(reducer, initialState)
@@ -34,13 +37,16 @@ export function Shell() {
 
   const isAuthRoute = route === 'signin' || route === 'signup'
   useEffect(() => {
+    if (route === 'privacy') return
     if (!user && !isAuthRoute) go('signin')
     else if (user && isAuthRoute) go('coach')
     else if (user && route === 'owner' && !user.owner) go('coach')
   }, [user, route, isAuthRoute])
 
   let page
-  if (!user) page = <AuthPage mode={route === 'signup' ? 'signup' : 'signin'} />
+  if (route === 'privacy') page = <PrivacyPage />
+  else if (!user) page = <AuthPage mode={route === 'signup' ? 'signup' : 'signin'} />
+  else if (!hasConsent(user)) page = <ConsentPage user={user} />
   else if (route === 'body') page = <BodyPage user={user} />
   else if (route === 'account') page = <AccountPage user={user} />
   else if (route === 'owner' && user.owner) page = <OwnerPage user={user} />

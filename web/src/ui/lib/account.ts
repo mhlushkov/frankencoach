@@ -1,10 +1,11 @@
 import { useSyncExternalStore } from 'react'
+import type { Consent } from './consent'
 
 // No accounts backend exists (contracts have no auth/profile/history). Members, sessions and chat history are
 // demo data kept in this browser's localStorage. Passwords are never stored.
 export type Plan = 'BASIC' | 'PRO' | 'TRIAL'
 export interface Body { height: string; weight: string; age: string; restingHr: string; side: 'Left' | 'Right' | 'Not sure'; injuries: string; goals: string[] }
-export interface User { id: string; name: string; email: string; plan: Plan; owner?: boolean; since: string; baseChats: number; lastActive: string; body?: Body }
+export interface User { id: string; name: string; email: string; plan: Plan; owner?: boolean; since: string; baseChats: number; lastActive: string; body?: Body; consent?: Consent }
 export interface Chat { id: string; userId: string; title: string; sport: string; ts: number }
 
 const K = { users: 'fc.users', session: 'fc.session', chats: 'fc.chats' }
@@ -51,9 +52,9 @@ export function signIn(email: string): User | null {
   if (u) set({ session: u.id })
   return u ?? null
 }
-export function signUp(name: string, email: string): User | { error: string } {
+export function signUp(name: string, email: string, consent: Consent): User | { error: string } {
   if (snap.users.some((x) => x.email.toLowerCase() === email.trim().toLowerCase())) return { error: 'That email already has an account.' }
-  const u: User = { id: 'u' + Date.now().toString(36), name: name.trim(), email: email.trim(), plan: 'BASIC', since: new Date().toLocaleString('en', { month: 'long', year: 'numeric' }), baseChats: 0, lastActive: 'Today' }
+  const u: User = { id: 'u' + Date.now().toString(36), name: name.trim(), email: email.trim(), plan: 'BASIC', since: new Date().toLocaleString('en', { month: 'long', year: 'numeric' }), baseChats: 0, lastActive: 'Today', consent }
   set({ users: [...snap.users, u], session: u.id })
   return u
 }
@@ -64,6 +65,11 @@ export function addMember(name: string, email: string, plan: Plan): string | nul
   return null
 }
 export const signOut = () => set({ session: null })
+export function recordConsent(userId: string, consent: Consent) { set({ users: snap.users.map((u) => (u.id === userId ? { ...u, consent } : u)) }) }
+// Right to erasure: removes the member, their body profile, consent and chat history from this browser, then signs out.
+export function deleteAccount(userId: string) {
+  set({ users: snap.users.filter((u) => u.id !== userId), chats: snap.chats.filter((c) => c.userId !== userId), session: null })
+}
 export function saveBody(userId: string, body: Body) { set({ users: snap.users.map((u) => (u.id === userId ? { ...u, body } : u)) }) }
 export function addChat(userId: string, title: string, sport: string) {
   const chat: Chat = { id: 'c' + Date.now().toString(36), userId, title, sport, ts: Date.now() }

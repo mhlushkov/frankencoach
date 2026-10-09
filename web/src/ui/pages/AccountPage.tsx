@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Frame } from '../lib/Frame'
-import { dayLabel, useAccount, type User } from '../lib/account'
+import { dayLabel, deleteAccount, useAccount, type User } from '../lib/account'
 import { Header } from '../Header'
 
 const USES: Record<string, string> = {
@@ -9,6 +10,14 @@ const USES: Record<string, string> = {
   'Resting heart rate': 'Used to tell how hard you worked',
   'Stronger side': 'Used to spot uneven movement',
   Injuries: 'I avoid advice that could make it worse',
+}
+
+// Two clicks, no browser dialog: the first asks, the second deletes.
+function DeleteButton({ userId }: { userId: string }) {
+  const [sure, setSure] = useState(false)
+  return sure ? (
+    <div className="row g12 t14"><button className="btn t14" type="button" style={{ color: 'var(--fc-fail)', borderColor: 'var(--fc-fail)' }} onClick={() => deleteAccount(userId)}>Yes, delete everything</button><button className="btn t14" type="button" onClick={() => setSure(false)}>Keep my account</button></div>
+  ) : <button className="btn t14" type="button" style={{ alignSelf: 'start', color: 'var(--fc-fail)' }} onClick={() => setSure(true)}>Delete my account and data</button>
 }
 
 export function AccountPage({ user }: { user: User }) {
@@ -51,6 +60,12 @@ export function AccountPage({ user }: { user: User }) {
               <div className="row baseline g12"><h3 className="h24">Your plan</h3><span className="badge" style={{ color: 'var(--fc-alive)', borderColor: 'var(--fc-alive)' }}>{user.plan}</span></div>
               <div className="col g6 t15" style={{ color: 'var(--color-text-2)' }}><span>✓ Every sport, including new ones</span><span>✓ Full chat history</span></div>
               <span className="muted t14">Learning new sports never costs you extra. Billing is not connected in this build.</span>
+            </Frame>
+            <Frame className="card-pad col g10">
+              <h3 className="h24">Your data</h3>
+              <span className="muted t14">{user.consent ? `You agreed to the privacy notice (version ${user.consent.version}) on ${new Date(user.consent.at).toLocaleString('en', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.` : 'No consent on record.'} <a href="#/privacy">Privacy notice</a></span>
+              <span className="muted t14">Deleting removes your account, body profile and chat history from this browser. This also withdraws your consent.</span>
+              <DeleteButton userId={user.id} />
             </Frame>
             <Frame className="card-pad col g10">
               <h3 className="h24">Recent chats</h3>
