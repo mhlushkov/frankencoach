@@ -1,0 +1,160 @@
+<!doctype html>
+<!-- Opening and closing scenes of the demo video, drawn on a canvas frame by frame: window.draw(name, t).
+     Rendered to docs/media/raw/<name>.mov by a headless browser (one screenshot per frame, 30 fps). -->
+<meta charset="utf-8">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080
+const ctx = document.getElementById('c').getContext('2d')
+const SANS = '"SF Pro Display", system-ui, -apple-system, "Helvetica Neue", sans-serif'
+const GREEN = '#39ff88', RED = '#ff5a52', GREY = '#8b9296'
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2 }
+const lerp = (a, b, k) => a + (b - a) * k
+
+// Apple-style line: fades in and rises 24 px from tIn, fades out from tOut.
+function line(text, t, tIn, y, { size = 96, weight = 600, color = '#f5f5f7', tOut = 99, x = W / 2 } = {}) {
+  const a = ease((t - tIn) / 0.7) * (1 - ease((t - tOut) / 0.5))
+  if (a <= 0) return
+  ctx.save()
+  ctx.globalAlpha = a
+  ctx.font = `${weight} ${size}px ${SANS}`
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.fillStyle = color
+  ctx.fillText(text, x, y + (1 - ease((t - tIn) / 0.7)) * 24)
+  ctx.restore()
+}
+function wordmark(t, tIn, y, size = 170) {
+  const a = ease((t - tIn) / 0.9)
+  if (a <= 0) return
+  ctx.save()
+  ctx.globalAlpha = a
+  ctx.font = `700 ${size}px ${SANS}`
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left'
+  const w1 = ctx.measureText('Franken').width, w2 = ctx.measureText('Coach').width
+  const x0 = W / 2 - (w1 + w2) / 2
+  const s = lerp(1.06, 1, a)
+  ctx.translate(W / 2, y); ctx.scale(s, s); ctx.translate(-W / 2, -y)
+  ctx.fillStyle = '#f5f5f7'; ctx.fillText('Franken', x0, y)
+  ctx.shadowColor = GREEN; ctx.shadowBlur = 40 * a
+  ctx.fillStyle = GREEN; ctx.fillText('Coach', x0 + w1, y)
+  ctx.restore()
+}
+function bg(t, dur) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H)
+  // slow push-in feel: a faint radial light that grows
+  const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 900 + 120 * (t / dur))
+  g.addColorStop(0, 'rgba(40,46,50,0.55)'); g.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+}
+
+// ---- memes: stick figures drawn like the app's skeleton, classic top/bottom meme text ----
+function memeText(text, y, maxW = 1780) {
+  let size = 128
+  ctx.font = `${size}px Impact, "Haettenschweiler", "Arial Black", sans-serif`
+  while (ctx.measureText(text).width > maxW && size > 50) { size -= 4; ctx.font = `${size}px Impact, "Arial Black", sans-serif` }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.lineJoin = 'round'; ctx.lineWidth = size / 9; ctx.strokeStyle = '#000'
+  ctx.strokeText(text, W / 2, y); ctx.fillStyle = '#fff'; ctx.fillText(text, W / 2, y)
+}
+function memeBg() {
+  ctx.fillStyle = '#15191b'; ctx.fillRect(0, 0, W, H)
+  const g = ctx.createRadialGradient(W / 2, H * 0.55, 100, W / 2, H * 0.55, 1100)
+  g.addColorStop(0, 'rgba(60,70,74,0.6)'); g.addColorStop(1, 'rgba(0,0,0,0.9)')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 4
+  ctx.beginPath(); ctx.moveTo(260, 900); ctx.lineTo(W - 260, 900); ctx.stroke()
+}
+const mix = (A, B, k) => { const o = {}; for (const key in A) o[key] = [lerp(A[key][0], B[key][0], k), lerp(A[key][1], B[key][1], k)]; return o }
+const BONES = [['neck','lsh'],['neck','rsh'],['lsh','lel'],['lel','lwr'],['rsh','rel'],['rel','rwr'],['lhip','rhip'],['lhip','lkn'],['lkn','lan'],['rhip','rkn'],['rkn','ran']]
+function figure(P, ox, oy, { spine = null, rings = [], ringA = 0, scale = 1 } = {}) {
+  ctx.save(); ctx.translate(ox, oy); ctx.scale(scale, scale)
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+  ctx.strokeStyle = '#e8ece9'; ctx.lineWidth = 16
+  for (const [a, b] of BONES) { ctx.beginPath(); ctx.moveTo(...P[a]); ctx.lineTo(...P[b]); ctx.stroke() }
+  const mid = [(P.lhip[0] + P.rhip[0]) / 2, (P.lhip[1] + P.rhip[1]) / 2]
+  ctx.beginPath(); ctx.moveTo(...P.neck)
+  if (spine) ctx.quadraticCurveTo(spine[0], spine[1], ...mid); else ctx.lineTo(...mid)
+  ctx.stroke()
+  ctx.beginPath(); ctx.arc(P.head[0], P.head[1], 46, 0, 7); ctx.stroke()
+  ctx.fillStyle = GREEN
+  for (const k of ['lsh','rsh','lel','rel','lwr','rwr','lhip','rhip','lkn','rkn','lan','ran'])
+    { ctx.beginPath(); ctx.arc(P[k][0], P[k][1], 10, 0, 7); ctx.fill() }
+  if (ringA > 0) {
+    ctx.globalAlpha = ringA; ctx.strokeStyle = RED; ctx.lineWidth = 8
+    for (const r of rings) { ctx.beginPath(); ctx.arc(r[0], r[1], 54 + 6 * Math.sin(performanceT * 12), 0, 7); ctx.stroke() }
+  }
+  ctx.restore()
+}
+let performanceT = 0
+const osc = (t, period) => (1 - Math.cos((t / period) * 2 * Math.PI)) / 2   // 0..1..0
+
+// front view squat: knees cave in and touch at the bottom
+const SQ_UP = { head:[0,-650], neck:[0,-590], lsh:[-85,-570], rsh:[85,-570], lel:[-100,-440], rel:[100,-440], lwr:[-80,-330], rwr:[80,-330],
+  lhip:[-55,-340], rhip:[55,-340], lkn:[-62,-175], rkn:[62,-175], lan:[-70,0], ran:[70,0] }
+const SQ_DN = { head:[0,-470], neck:[0,-410], lsh:[-85,-390], rsh:[85,-390], lel:[-175,-330], rel:[175,-330], lwr:[-235,-400], rwr:[235,-400],
+  lhip:[-70,-200], rhip:[70,-200], lkn:[-10,-80], rkn:[10,-80], lan:[-90,0], ran:[90,0] }
+// side view deadlift: the back rounds like a cat
+const DL_UP = { head:[25,-650], neck:[15,-590], lsh:[10,-570], rsh:[20,-565], lel:[15,-450], rel:[25,-450], lwr:[15,-340], rwr:[25,-340],
+  lhip:[-5,-340], rhip:[5,-340], lkn:[5,-170], rkn:[15,-170], lan:[0,0], ran:[10,0] }
+const DL_DN = { head:[250,-280], neck:[200,-320], lsh:[185,-310], rsh:[195,-305], lel:[180,-200], rel:[190,-200], lwr:[175,-95], rwr:[185,-95],
+  lhip:[-95,-270], rhip:[-85,-270], lkn:[70,-140], rkn:[80,-140], lan:[0,0], ran:[10,0] }
+// side view run: huge overstride, heel first, leaning back, arms everywhere
+const RN_A = { head:[-45,-650], neck:[-35,-590], lsh:[-30,-570], rsh:[-40,-570], lel:[-150,-500], rel:[90,-640], lwr:[-110,-380], rwr:[160,-720],
+  lhip:[0,-340], rhip:[0,-340], lkn:[130,-200], rkn:[-70,-190], lan:[260,-20], ran:[-170,-130] }
+const RN_B = { ...RN_A, lel:[90,-640], lwr:[160,-720], rel:[-150,-500], rwr:[-110,-380], lkn:[-70,-190], lan:[-170,-130], rkn:[130,-200], ran:[260,-20] }
+
+const SCENES = {
+  'p-alone': { dur: 4.2, draw(t) {
+    bg(t, 4.2)
+    line('Every night,', t, 0.2, 470, { color: GREY, size: 84 })
+    line('millions of people train alone.', t, 1.0, 590, { size: 104 })
+  } },
+  'meme-squat': { dur: 2.9, draw(t) {
+    memeBg(); const k = ease(osc(t, 1.45)); const P = mix(SQ_UP, SQ_DN, k)
+    figure(P, W / 2, 900 - 0, { rings: [P.lkn, P.rkn], ringA: clamp((k - 0.6) * 3) })
+    memeText('DAY 412 OF LEG DAY', 120); memeText('NOBODY TOLD HIM ABOUT THE KNEES', 980)
+  } },
+  'meme-deadlift': { dur: 2.9, draw(t) {
+    memeBg(); const k = ease(osc(t + 1, 2)); const P = mix(DL_UP, DL_DN, k)
+    const bar = [(P.lwr[0] + P.rwr[0]) / 2, (P.lwr[1] + P.rwr[1]) / 2]
+    ctx.save(); ctx.translate(W / 2 - 60, 900)
+    ctx.fillStyle = '#2b3133'; ctx.strokeStyle = '#6b7376'; ctx.lineWidth = 6
+    ctx.beginPath(); ctx.arc(bar[0], bar[1], 88, 0, 7); ctx.fill(); ctx.stroke()
+    ctx.restore()
+    const sp = [lerp(0, 120, k) , lerp(-470, -470, k)]
+    figure(P, W / 2 - 60, 900, { spine: sp, rings: [[lerp(5, 80, k), lerp(-460, -395, k)]], ringA: clamp((k - 0.5) * 3) })
+    memeText('NEW PERSONAL RECORD', 120); memeText('HIS SPINE WAS NOT CONSULTED', 980)
+  } },
+  'meme-run': { dur: 2.9, draw(t) {
+    memeBg()
+    const ph = (t / 0.75) % 1, k = ease(ph < 0.5 ? ph * 2 : 2 - ph * 2)
+    const P = mix(RN_A, RN_B, k), bob = -Math.abs(Math.sin(t / 0.75 * Math.PI * 2)) * 70
+    const front = k < 0.5 ? P.lan : P.ran
+    figure(P, W / 2, 890 + bob * 0.7, { scale: 0.82, rings: [front], ringA: 1 - Math.abs(k - (k < 0.5 ? 0 : 1)) * 4 })
+    memeText('TRAINING FOR A MARATHON', 120); memeText('EVERYONE SAW. NOBODY SAID A WORD.', 980)
+  } },
+  'p-why': { dur: 5.6, draw(t) {
+    bg(t, 5.6)
+    line("A coach can't watch everyone.", t, 0.2, 470, { size: 96 })
+    line('An app only knows what it was built for.', t, 2.3, 600, { size: 76, color: GREY })
+  } },
+  'reveal': { dur: 4.6, draw(t) {
+    bg(t, 4.6)
+    line('So we built a coach', t, 0.1, 470, { size: 104, tOut: 2.2 })
+    line('that builds itself.', t, 0.8, 600, { size: 104, tOut: 2.2 })
+    wordmark(t, 2.6, 500)
+    line('learns any sport you show it', t, 3.2, 650, { size: 48, weight: 500, color: GREY })
+  } },
+  'end': { dur: 5.4, draw(t) {
+    bg(t, 5.4)
+    line('This was one night.', t, 0.2, 470, { size: 104, tOut: 3.0 })
+    line('Imagine a year.', t, 1.6, 600, { size: 104, color: GREEN, tOut: 3.0 })
+    wordmark(t, 3.3, 480, 140)
+    line('github.com/mhlushkov/frankencoach', t, 3.8, 620, { size: 44, weight: 500, color: GREY })
+  } },
+}
+window.SCENES = Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, v.dur]))
+window.draw = (name, t) => { performanceT = t; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.textAlign = 'left'; ctx.globalAlpha = 1; ctx.shadowBlur = 0; SCENES[name].draw(t) }
+</script>

@@ -1,30 +1,81 @@
 {
-  "_doc": "Machine copy of SHOTLIST.md for scripts/video/assemble.sh. file/alt: names in docs/media/raw (first that exists wins; broll-* gets '(AI-generated)' appended to its caption). start: seconds into the source. duration: output seconds before voice-over stretch. speed: source seconds per output second (default 1). colour: green worked/reused, amber learning, red refused, grey human/neutral.",
+  "_doc": "Machine copy of SHOTLIST.md for scripts/video/assemble.sh. file/alt: names in docs/media/raw (first that exists wins; broll-* gets '(AI-generated)' appended to its caption). start: seconds into the source. duration: output seconds before voice-over stretch. speed: source seconds per output second (default 1). colour: green worked/reused, amber learning, red refused, grey human/neutral. title/end duration 0 = no card (the opening and closing are scenes from docs/video/scenes/scenes.html). Empty caption = no caption box. fade: seconds of fade from/to black for this shot (default FADE).",
   "title": {
-    "duration": 3,
+    "duration": 0,
     "line1": "FrankenCoach",
     "line2": "the coach that learns any sport you show it"
   },
   "end": {
-    "duration": 3,
+    "duration": 0,
     "line1": "github.com/mhlushkov/frankencoach",
     "line2": "built from scratch 21:00 → 07:14"
   },
   "shots": [
     {
+      "shot": "p-alone",
+      "file": "p-alone.mov",
+      "start": 0,
+      "duration": 4.2,
+      "caption": "",
+      "colour": "grey"
+    },
+    {
+      "shot": "meme-squat",
+      "file": "meme-squat.mov",
+      "start": 0,
+      "duration": 2.9,
+      "caption": "",
+      "colour": "grey",
+      "fade": 0
+    },
+    {
+      "shot": "meme-deadlift",
+      "file": "meme-deadlift.mov",
+      "start": 0,
+      "duration": 2.9,
+      "caption": "",
+      "colour": "grey",
+      "fade": 0
+    },
+    {
+      "shot": "meme-run",
+      "file": "meme-run.mov",
+      "start": 0,
+      "duration": 2.9,
+      "caption": "",
+      "colour": "grey",
+      "fade": 0
+    },
+    {
+      "shot": "p-why",
+      "file": "p-why.mov",
+      "start": 0,
+      "duration": 5.6,
+      "caption": "",
+      "colour": "grey"
+    },
+    {
+      "shot": "reveal",
+      "file": "reveal.mov",
+      "start": 0,
+      "duration": 4.6,
+      "caption": "",
+      "colour": "grey"
+    },
+    {
       "shot": "01-dusk",
       "file": "broll-dusk.mp4",
       "alt": "01-dusk.mov",
       "start": 0,
-      "duration": 6,
-      "caption": "Dusk: sees bodies, reads tables, no sport",
+      "duration": 4,
+      "caption": "Dusk: it knows no sport",
       "colour": "grey"
     },
     {
       "shot": "02-gap",
       "file": "02-gap.mov",
       "start": 0,
-      "duration": 8,
+      "duration": 6.5,
       "caption": "New sport: it asks before learning",
       "colour": "amber",
       "speed": 0.7
@@ -33,8 +84,8 @@
       "shot": "03-learn",
       "file": "03-learn.mov",
       "start": 6,
-      "duration": 14,
-      "speed": 1.4,
+      "duration": 10,
+      "speed": 1.9,
       "caption": "Writes, tests, tries, checks rights, installs",
       "colour": "amber"
     },
@@ -42,7 +93,7 @@
       "shot": "04-honest",
       "file": "04-honest.mov",
       "start": 25.5,
-      "duration": 9,
+      "duration": 6,
       "caption": "Advice from numbers, and its limits",
       "colour": "green",
       "speed": 1
@@ -50,25 +101,17 @@
     {
       "shot": "05-two-people",
       "file": "05-two-people.mov",
-      "start": 86.3,
-      "duration": 12,
+      "start": 87,
+      "duration": 10,
       "caption": "AI clip, two people: asks, then reuses",
       "colour": "amber",
-      "speed": 1.4
-    },
-    {
-      "shot": "06-bad-file",
-      "file": "06-bad-file.mov",
-      "start": 0,
-      "duration": 7,
-      "caption": "Not a workout: refused for $0",
-      "colour": "red"
+      "speed": 1.5
     },
     {
       "shot": "07-refuse",
       "file": "07-refuse.mov",
       "start": 0,
-      "duration": 8,
+      "duration": 6.5,
       "caption": "Medical question: refused, rights unchanged",
       "colour": "red"
     },
@@ -76,7 +119,7 @@
       "shot": "08-overnight",
       "file": "08-overnight.mov",
       "start": 0,
-      "duration": 9,
+      "duration": 7,
       "caption": "Learned overnight by itself, under $0.15 each",
       "colour": "green"
     },
@@ -85,8 +128,16 @@
       "file": "broll-dawn.mp4",
       "alt": "09-dawn.mov",
       "start": 0,
-      "duration": 6,
+      "duration": 5,
       "caption": "Dawn: new skills, same rights",
+      "colour": "grey"
+    },
+    {
+      "shot": "end",
+      "file": "end.mov",
+      "start": 0,
+      "duration": 5.4,
+      "caption": "",
       "colour": "grey"
     }
   ]

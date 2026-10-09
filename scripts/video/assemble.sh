@@ -48,8 +48,10 @@ colour_hex() {
   esac
 }
 
-fades() { # $1 segment seconds -> video filter for a fade from black and back to black
-  echo "fade=t=in:st=0:d=$FADE,fade=t=out:st=$(calc "$1 - $FADE"):d=$FADE"
+fades() { # $1 segment seconds, $2 fade seconds (default FADE) -> video filter for a fade from and to black
+  local f="${2:-$FADE}"
+  if [[ "$(calc "$f > 0 ? 1 : 0")" != "1.000" ]]; then echo "null"; return; fi
+  echo "fade=t=in:st=0:d=$f,fade=t=out:st=$(calc "$1 - $f"):d=$f"
 }
 
 card() { # $1 out.mp4, $2 seconds, $3 line1, $4 line2
@@ -63,7 +65,7 @@ bun -e '
 const j = await Bun.file(process.argv[1]).json()
 const t = [j.title.duration, j.title.line1, j.title.line2, j.end.duration, j.end.line1, j.end.line2]
 console.log(["#cards", ...t].join("\x1f"))
-for (const s of j.shots) console.log([s.shot, s.file, s.alt ?? "", s.start ?? 0, s.duration, s.speed ?? 1, s.caption, s.colour].join("\x1f"))
+for (const s of j.shots) console.log([s.shot, s.file, s.alt ?? "", s.start ?? 0, s.duration, s.speed ?? 1, s.caption || "-", s.colour, s.fade ?? ""].join("\x1f"))
 ' "$SHOTS" > "$BUILD/plan.tsv"
 
 IFS=$'\x1f' read -r _ t_dur t1 t2 e_dur e1 e2 < "$BUILD/plan.tsv"
@@ -71,11 +73,13 @@ IFS=$'\x1f' read -r _ t_dur t1 t2 e_dur e1 e2 < "$BUILD/plan.tsv"
 font_used=""
 n=0
 
-card "$BUILD/seg-000.mp4" "$t_dur" "$t1" "$t2"
-echo "file '$BUILD/seg-000.mp4'" >> "$BUILD/list.txt"
-echo "title  ${t_dur}s"
+if [[ "$t_dur" != "0" ]]; then
+  card "$BUILD/seg-000.mp4" "$t_dur" "$t1" "$t2"
+  echo "file '$BUILD/seg-000.mp4'" >> "$BUILD/list.txt"
+  echo "title  ${t_dur}s"
+fi
 
-while IFS=$'\x1f' read -r shot file alt start duration speed caption colour; do
+while IFS=$'\x1f' read -r shot file alt start duration speed caption colour fade; do
   n=$((n + 1))
   seg="$BUILD/seg-$(printf '%03d' "$n").mp4"
   src=""
@@ -94,7 +98,11 @@ while IFS=$'\x1f' read -r shot file alt start duration speed caption colour; do
   len="$(calc "Math.max($duration, $vo_len + 0.4)")"
   window="$(calc "$len * $speed + 0.5")"
 
-  font_used="$(osascript -l JavaScript "$RENDER" caption "$caption" "$(colour_hex "$colour")" "$BUILD/cap.png" 44 < /dev/null)"
+  if [[ "$caption" == "-" ]]; then # no caption: a transparent pixel keeps the filter graph the same
+    "${FF[@]}" -f lavfi -i "color=c=black@0.0:s=2x2,format=rgba" -frames:v 1 "$BUILD/cap.png"
+  else
+    font_used="$(osascript -l JavaScript "$RENDER" caption "$caption" "$(colour_hex "$colour")" "$BUILD/cap.png" 44 < /dev/null)"
+  fi
 
   if [[ -n "$src" ]]; then
     vin=(-ss "$start" -t "$window" -i "$src")
@@ -111,16 +119,18 @@ while IFS=$'\x1f' read -r shot file alt start duration speed caption colour; do
   if [[ -n "$vo" ]]; then ain=(-i "$vo"); else ain=(-f lavfi -i anullsrc=r=48000:cl=stereo); fi
 
   "${FF[@]}" "${vin[@]}" -loop 1 -i "$BUILD/cap.png" "${ain[@]}" ${extra[@]+"${extra[@]}"} \
-    -filter_complex "$vchain;[base][1:v]overlay=x=64:y=H-h-64,format=yuv420p,$(fades "$len")[v];[2:a]aresample=48000,aformat=channel_layouts=stereo,adelay=150:all=1,apad[a]" \
+    -filter_complex "$vchain;[base][1:v]overlay=x=64:y=H-h-64,format=yuv420p,$(fades "$len" "$fade")[v];[2:a]aresample=48000,aformat=channel_layouts=stereo,adelay=150:all=1,apad[a]" \
     -map "[v]" -map "[a]" -t "$len" "${VENC[@]}" "${AENC[@]}" "$seg"
   echo "file '$seg'" >> "$BUILD/list.txt"
   printf '%-13s %6.2fs  vo %5.2fs  src %s\n' "$shot" "$len" "$vo_len" "$([[ -n "$src" ]] && basename "$src" || echo PLACEHOLDER)"
 done < <(tail -n +2 "$BUILD/plan.tsv")
 
-n=$((n + 1))
-card "$BUILD/seg-$(printf '%03d' "$n").mp4" "$e_dur" "$e1" "$e2"
-echo "file '$BUILD/seg-$(printf '%03d' "$n").mp4'" >> "$BUILD/list.txt"
-echo "end    ${e_dur}s"
+if [[ "$e_dur" != "0" ]]; then
+  n=$((n + 1))
+  card "$BUILD/seg-$(printf '%03d' "$n").mp4" "$e_dur" "$e1" "$e2"
+  echo "file '$BUILD/seg-$(printf '%03d' "$n").mp4'" >> "$BUILD/list.txt"
+  echo "end    ${e_dur}s"
+fi
 
 if [[ "$MUSIC" != "none" && -f "$MUSIC" ]]; then
   "${FF[@]}" -f concat -safe 0 -i "$BUILD/list.txt" -c copy "$BUILD/joined.mp4"
