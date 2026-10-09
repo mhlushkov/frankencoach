@@ -201,6 +201,19 @@ describe('analyze loop', () => {
     expect(ev.some((e) => e.type === 'thinking' && e.text.includes('Smoothed'))).toBe(false);
   });
 
+  test('two people in the frames, one chosen track → identified with a note, not rejected', async () => {
+    const { deps, calls } = fakeDeps([poseMetrics, squatTool]);
+    deps.classify = async () => { calls.classify++; return { value: { isHuman: true, numPeople: 2, activity: 'squat', isSport: true, environment: 'gym', intent: 'technique', mismatchWithHint: false, confidence: 0.9, reason: 'two people squatting' }, llm: llmResp('{}') }; };
+    const ev = await collect({ sessionId: 's8', message: 'Analyze this.', input: { kind: 'landmarks', landmarks: squat as Landmarks } }, deps);
+    const t = types(ev);
+    expect(t).not.toContain('rejected');
+    expect(t).toContain('tool_used');
+    expect(t).toContain('answer');
+    const id = ev.find((e) => e.type === 'identified');
+    expect(id && id.type === 'identified' ? id.text : '').toContain('I can see 2 people in the frames and follow the one you chose.');
+    expect(calls.run).toEqual(['squat-technique']);
+  });
+
   test('usable:false → rejected not_a_sport, no answer', async () => {
     const { deps } = fakeDeps([poseMetrics, squatTool]);
     deps.runTool = async () => ({ metrics: {}, usable: false, warnings: ['no squat pattern'] });

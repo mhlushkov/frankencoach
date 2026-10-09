@@ -129,13 +129,15 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
     yield cost('classify', c.llm);
     const k = c.value;
     if (!k.isHuman) { yield reject('no_human', `No person recognized in the frames. ${k.reason}`, ['Film one person, whole body visible']); return; }
-    if (k.numPeople > 1) { yield reject('low_confidence', `Several people in frame (${k.numPeople}); I analyze one athlete at a time.`, ['Film a single athlete']); return; }
+    // Several people in the frames: the client already sent one person's track (the member tapped one) and the gate
+    // confirmed it is one coherent body, so follow that person instead of refusing the whole clip.
+    const crowdNote = k.numPeople > 1 ? `I can see ${k.numPeople} people in the frames and follow the one you chose. ` : '';
     if (k.mismatchWithHint) { yield reject('mismatch', `The video does not match the hint "${req.sportHint}": ${k.reason}`, ['Check the sport hint or upload the right video']); return; }
     if (!k.isSport) { yield reject('not_a_sport', `This does not look like a sport activity: ${k.reason}`, ['Upload a training clip']); return; }
     if (k.confidence < thresholds.minClassifyConfidence) { yield reject('low_confidence', `Not sure what activity this is (confidence ${k.confidence.toFixed(2)}): ${k.reason}`, ['Add a sport hint', 'Film from the side, whole body visible']); return; }
     const can = deps.canonicalize(k.activity);
     activity = can.canonical; how = can.how;
-    yield { type: 'identified', activity, confidence: k.confidence, text: `Looks like ${activity} (${Math.round(k.confidence * 100)}%). ${k.reason}` };
+    yield { type: 'identified', activity, confidence: k.confidence, text: `${crowdNote}Looks like ${activity} (${Math.round(k.confidence * 100)}%). ${k.reason}` };
   } else {
     yield { type: 'thinking', text: 'Checking the table: rows, numeric columns, time column…' };
     const v = deps.validity.checkTable(input.text);
