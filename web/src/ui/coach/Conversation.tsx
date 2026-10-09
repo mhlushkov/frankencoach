@@ -46,11 +46,13 @@ interface Props {
   working: boolean
   onLearn: () => void
   onDecline: () => void
+  /** Several people in the clip and none picked yet: how many. Local UI, not an AppState message. */
+  askPeople?: number
 }
 
-export function Conversation({ state, choice, working, onLearn, onDecline }: Props) {
+export function Conversation({ state, choice, working, onLearn, onDecline, askPeople }: Props) {
   const box = useRef<HTMLDivElement>(null)
-  useEffect(() => { const el = box.current; if (el) setTimeout(() => { el.scrollTop = el.scrollHeight }, 30) }, [state.messages.length, state.events.length, choice])
+  useEffect(() => { const el = box.current; if (el) setTimeout(() => { el.scrollTop = el.scrollHeight }, 30) }, [state.messages.length, state.events.length, choice, askPeople])
 
   // Past turns come from messages; the current request is rendered live from its events.
   let lastUser = -1
@@ -134,6 +136,8 @@ export function Conversation({ state, choice, working, onLearn, onDecline }: Pro
         break // plan, test_result, authority_check, parsed, cost: evidence for the dev console, not for members
     }
   })
+
+  if (askPeople) rows.push(<Row key="people" tag="Question" tone="learn">{label(`I can see ${askPeople} people. Tap the one I should watch.`)}</Row>)
 
   return <div className="log" ref={box} aria-live="polite">{rows}</div>
 }

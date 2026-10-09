@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AnalyzeInput, AnalyzeRequest } from '../../../../contracts/types'
+import type { AnalyzeInput, AnalyzeRequest, Landmarks } from '../../../../contracts/types'
 import { analyze, forget } from '../../core/api/client'
 import { prepareVideo } from '../../core/pose/extract'
+import { bestFrameFor, selectPerson, type Person } from '../../core/pose/people'
 import { selectors } from '../../core/state'
 import { Header } from '../Header'
 import { useUi } from '../UiContext'
 import { addChat, bodySummary, dayLabel, useAccount, type User } from '../lib/account'
+import { chooserState } from './chooser'
 import { Conversation, type Choice } from './Conversation'
 import { HowItWorks, useHowItWorks } from './HowItWorks'
 import { sportName } from '../lib/text'
 import { SportsFooter } from './SportsFooter'
-import { Workout, type Media } from './Workout'
+import { Workout, type Media, type Picker } from './Workout'
 
 const TEXT_EXT = /\.(csv|json|gpx|tcx|txt)$/i
 
@@ -31,6 +33,10 @@ export function CoachScreen({ user }: { user: User }) {
   const [working, setWorking] = useState(false)
   const [text, setText] = useState('')
   const [sport, setSport] = useState('')
+  // Several people in the clip: local UI state until the member taps one (like `choice`, never in AppState).
+  const [crowd, setCrowd] = useState<{ people: Person[]; frames: string[]; name: string; seekTo: number; boxes: Picker['boxes'] } | null>(null)
+  const [picked, setPicked] = useState<{ picked: number; of: number } | undefined>()
+  const fileSeq = useRef(0)
   const ac = useRef<AbortController | null>(null)
   const latest = useRef(state)
   useEffect(() => { latest.current = state })
@@ -43,16 +49,35 @@ export function CoachScreen({ user }: { user: User }) {
   const busy = working || !selectors.canSend(state)
   const showHow = useHowItWorks(state.messages.length)
 
+  const asking = chooserState(crowd?.people.length ?? 0, picked?.picked) === 'asking'
+
+  function applyLandmarks(landmarks: Landmarks, frames: string[], name: string) {
+    setMedia((m) => (m?.kind === 'video' ? { ...m, landmarks } : m))
+    dispatch({ type: 'inputReady', input: { kind: 'landmarks', landmarks, frames }, inputName: name, frames })
+  }
+
+  function pickPerson(id: number) {
+    if (!crowd) return
+    const landmarks = selectPerson(crowd.people, id)
+    if (!landmarks) return
+    setPicked({ picked: id, of: crowd.people.length })
+    applyLandmarks(landmarks, crowd.frames, crowd.name)
+  }
+
   async function onFile(file: File) {
-    setFileError('')
+    const seq = ++fileSeq.current
+    setFileError(''); setCrowd(null); setPicked(undefined)
     if (file.type.startsWith('video/')) {
       setMedia({ kind: 'video', url: URL.createObjectURL(file), name: file.name })
       dispatch({ type: 'extractProgress', value: 0 })
       try {
-        const { landmarks, frames } = await prepareVideo(file, { onProgress: (value) => dispatch({ type: 'extractProgress', value }) })
-        setMedia((m) => (m?.kind === 'video' ? { ...m, landmarks } : m))
-        dispatch({ type: 'inputReady', input: { kind: 'landmarks', landmarks, frames }, inputName: file.name, frames })
+        const { landmarks, frames, people } = await prepareVideo(file, { onProgress: (value) => dispatch({ type: 'extractProgress', value }) })
+        if (seq !== fileSeq.current) return
+        const best = people.length > 1 ? bestFrameFor(people) : undefined
+        if (best) setCrowd({ people, frames, name: file.name, seekTo: best.t, boxes: best.boxes })
+        else applyLandmarks(landmarks, frames, file.name)
       } catch (err) {
+        if (seq !== fileSeq.current) return
         console.error('video extraction failed', err)
         setMedia(null)
         dispatch({ type: 'reset' })
@@ -106,13 +131,14 @@ export function CoachScreen({ user }: { user: User }) {
     void run(req, true)
   }
   function decline() { setChoice('declined'); if (state.lastRequest) logChat(state.lastRequest.message) }
-  function newChat() { ac.current?.abort(); setWorking(false); setMedia(null); setFileError(''); setChoice('none'); setText(''); dispatch({ type: 'reset' }) }
+  function newChat() { fileSeq.current++; setCrowd(null); setPicked(undefined); ac.current?.abort(); setWorking(false); setMedia(null); setFileError(''); setChoice('none'); setText(''); dispatch({ type: 'reset' }) }
 
   // header status for both panels
   const rejected = state.events.some((e) => e.type === 'rejected')
   const growing = busy && state.events.some((e) => e.type === 'growing')
   let status = { label: 'WAITING', color: 'var(--fc-human)', live: 'ready when you are' }
-  if (state.status === 'extracting') status = { label: 'WATCHING', color: 'var(--color-text)', live: 'watching your video' }
+  if (asking) status = { label: 'QUESTION', color: 'var(--fc-learn)', live: 'waiting for your answer' }
+  else if (state.status === 'extracting') status = { label: 'WATCHING', color: 'var(--color-text)', live: 'watching your video' }
   else if (rejected) status = { label: "CAN'T USE", color: 'var(--fc-fail)', live: "can't use this one" }
   else if (state.status === 'error') status = { label: 'ERROR', color: 'var(--fc-fail)', live: 'something went wrong' }
   else if (growing) status = { label: 'LEARNING', color: 'var(--fc-learn)', live: 'learning something new' }
@@ -161,7 +187,8 @@ export function CoachScreen({ user }: { user: User }) {
             <span className="muted t15 ellipsis">{media?.name ?? ''}</span>
             <span className="badge push nowrap" style={{ color: status.color, borderColor: status.color }}>{status.label}</span>
           </div>
-          <Workout state={state} media={media} fileError={fileError} onFile={(f) => void onFile(f)} />
+          <Workout state={state} media={media} fileError={fileError} onFile={(f) => void onFile(f)}
+            picker={asking && crowd ? { boxes: crowd.boxes, seekTo: crowd.seekTo, onPick: pickPerson } : undefined} watching={picked} />
         </section>
 
         <section className="right">
@@ -171,12 +198,12 @@ export function CoachScreen({ user }: { user: User }) {
             <span className="muted t14">{status.live}</span>
           </div>
           {showHow && <HowItWorks />}
-          <Conversation state={state} choice={choice} working={working} onLearn={learn} onDecline={decline} />
+          <Conversation state={state} choice={choice} working={working} onLearn={learn} onDecline={decline} askPeople={asking ? crowd?.people.length : undefined} />
           <div className="composer">
-            <textarea className="input" aria-label="Ask your coach" placeholder="Ask your coach…" value={text} onChange={(e) => setText(e.target.value)}
+            <textarea className="input" aria-label="Ask your coach" disabled={asking} placeholder="Ask your coach…" value={text} onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} />
             <div className="row g12">
-              <input className="input" aria-label="Sport" placeholder="Sport (optional)" style={{ width: 180, minHeight: 34, height: 34, fontSize: 14 }} value={sport} onChange={(e) => setSport(e.target.value)} />
+              <input className="input" aria-label="Sport" disabled={asking} placeholder="Sport (optional)" style={{ width: 180, minHeight: 34, height: 34, fontSize: 14 }} value={sport} onChange={(e) => setSport(e.target.value)} />
               <div className="blueprint push btn-frame"><i className="corner tl" /><i className="corner tr" /><i className="corner bl" /><i className="corner br" />
                 <button className="btn btn-primary" style={{ minWidth: 96 }} disabled={busy || (!text.trim() && !state.input)} onClick={send}>Send</button>
               </div>
