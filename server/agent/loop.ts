@@ -11,6 +11,7 @@ import type { SniffArgs, Sniff } from '../gate/sniff';
 import type { LogEntry } from './log';
 import { ToolRunError, type ToolInput } from './runner';
 import { plan, type FindFn } from './planner';
+import { decide, rubricSummary, type ExamArgs, type Exam } from './examiner';
 
 // ---------- dependency surface (A3/A7/A9/A10 are injected; tests pass fakes) ----------
 export type Rejection = { ok: false; reason: string; text: string; tips: string[]; stats?: Record<string, unknown> };
@@ -43,6 +44,8 @@ export interface LoopDeps {
   grow(args: GrowArgs, ctx: { emit(e: AgentEvent): void; budget: Budget; stepIndex: number }): Promise<GrowResult>;
   runTool(name: string, input: ToolInput): Promise<ToolResult | Session>;
   llm(req: LlmRequest): Promise<LlmResponse>;
+  /** the examiner (a second agent) grades the draft advice on the rubric; absent = advice goes out ungraded */
+  examine?(args: ExamArgs): Promise<{ value: Exam; llm: LlmResponse }>;
   checkIntent(message: string): { allowed: boolean; reason?: string };
   estimateGrowUsd(kind: ToolKind): number;
   budgetLimitUsd: number;
@@ -114,7 +117,7 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
   }
 
   // 2. validity ($0) → 3. classify / sniff (cheap model)
-  let activity: string; let how: 'exact' | 'synonym' | 'new' = 'new'; let formatId: string | undefined;
+  let activity: string; let idConf = 0; let how: 'exact' | 'synonym' | 'new' = 'new'; let formatId: string | undefined;
   let sampleStats: Record<string, unknown> | undefined; let head30: string | undefined;
   let landmarks: Landmarks | undefined; // the gate's healed (smoothed) copy when it made one, else the raw input
   if (input.kind === 'landmarks') {
@@ -136,7 +139,7 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
     if (!k.isSport) { yield reject('not_a_sport', `This does not look like a sport activity: ${k.reason}`, ['Upload a training clip']); return; }
     if (k.confidence < thresholds.minClassifyConfidence) { yield reject('low_confidence', `Not sure what activity this is (confidence ${k.confidence.toFixed(2)}): ${k.reason}`, ['Add a sport hint', 'Film from the side, whole body visible']); return; }
     const can = deps.canonicalize(k.activity);
-    activity = can.canonical; how = can.how;
+    activity = can.canonical; how = can.how; idConf = k.confidence;
     yield { type: 'identified', activity, confidence: k.confidence, text: `${crowdNote}Looks like ${activity} (${Math.round(k.confidence * 100)}%). ${k.reason}` };
   } else {
     yield { type: 'thinking', text: 'Checking the table: rows, numeric columns, time column…' };
@@ -151,7 +154,7 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
     yield cost('sniff', s.llm);
     if (!s.value.isSportData) { yield reject('bad_table', `This table does not look like sport data (${s.value.formatId}).`, ['Export a workout/dive from your watch app']); return; }
     const can = deps.canonicalize(s.value.activity);
-    activity = can.canonical; how = can.how; formatId = s.value.formatId;
+    activity = can.canonical; how = can.how; formatId = s.value.formatId; idConf = s.value.confidence;
     yield { type: 'identified', activity, formatId, confidence: s.value.confidence, text: `Format ${formatId}, activity ${activity} (${Math.round(s.value.confidence * 100)}%).` };
   }
 
@@ -255,13 +258,56 @@ export async function* analyze(req: AnalyzeRequest, deps: LoopDeps): AsyncGenera
 
   // 7. coach feedback (cheap model; only metrics/warnings/activity/message go to the model)
   if (budget.exceeded) { yield { type: 'error', text: `Session budget of $${budget.limit.toFixed(2)} is used up before feedback.` }; yield total(); return; }
-  const fb = await deps.llm({
-    tier: 'cheap', system: coachPrompt, maxTokens: 600,
-    user: JSON.stringify({ message: req.message, activity, metrics: result.metrics, warnings: result.warnings ?? [] }),
+  // first draft on the cheap model; a rewrite the examiner asked for goes to the strong one
+  const draft = (notes?: string[]) => deps.llm({
+    tier: notes?.length ? 'strong' : 'cheap', system: coachPrompt, maxTokens: 600,
+    user: JSON.stringify({ message: req.message, input: input.kind === 'file' ? 'watch or app export file' : 'video clip, 2D pose from one camera', activity, metrics: result!.metrics, warnings: result!.warnings ?? [], ...(notes?.length ? { examinerNotes: notes } : {}) }),
   });
-  yield { type: 'answer', text: fb.text.trim() };
+  const fb = await draft();
   yield cost('feedback', fb);
-  yield total();
+  let advice = fb.text.trim();
+  if (!deps.examine) { yield { type: 'answer', text: advice }; yield total(); return; }
+
+  // 8. the examiner grades the advice; one rewrite from its notes, then the rules decide
+  const lastIdx = chain.length - 1;
+  const toolName = chain[lastIdx].tool!;
+  const m = deps.registry.list().find((t) => t.name === toolName);
+  for (let round = 1; round <= 2; round++) {
+    if (budget.exceeded) { yield { type: 'answer', text: advice }; yield total(); return; }
+    yield { type: 'thinking', text: round === 1 ? 'A second agent is examining what I learned against the coaching rubric…' : 'Examining the rewrite…' };
+    let x: { value: Exam; llm: LlmResponse };
+    try {
+      x = await deps.examine({
+        message: req.message, input: input.kind === 'file' ? 'file' : 'clip', activity, confidence: idConf,
+        tool: m && { name: m.name, description: m.description, createdBy: m.createdBy, attempts: m.attempts },
+        justLearned: grownHere.has(toolName), metrics: result.metrics, warnings: result.warnings ?? [], advice,
+      });
+    } catch (e) {
+      yield { type: 'thinking', text: `The examiner could not grade this (${(e as Error).message.slice(0, 80)}); the advice is ungraded.` };
+      yield { type: 'answer', text: advice }; yield total(); return;
+    }
+    yield cost('feedback', x.llm);
+    const ex = x.value;
+    const d = decide(ex);
+    deps.appendLog({ ts: now(), sessionId: req.sessionId, step: 'examine', data: { tool: toolName, round, scores: ex.scores, decision: d.decision, why: d.why, missing: ex.missing, highRisk: ex.highRisk, dataTooPoor: ex.dataTooPoor } });
+    yield { type: 'test_result', name: toolName, attempt: round, pass: d.decision === 'ready', summary: `${rubricSummary(ex.scores, d.decision)} | ${d.why} | ${ex.reason}`, stepIndex: lastIdx };
+    if (d.decision === 'ready') { yield { type: 'answer', text: advice }; yield total(); return; }
+    if (d.decision === 'block') {
+      const tips = ex.missing.length ? ex.missing.slice(0, 3) : ['Film the whole movement from the side', 'Ask a human coach to review it'];
+      yield reject('low_confidence', `I am holding my advice back: ${d.why}. ${ex.highRisk ? 'With this much at stake, a human coach should review it.' : 'I need more or better data before I coach this.'}`, tips);
+      yield total(); return;
+    }
+    if (round === 1) {
+      yield { type: 'thinking', text: `The examiner sent it back (${d.why}). Rewriting the advice from the evidence…` };
+      const again = await draft([ex.reason, ...ex.missing]);
+      yield cost('feedback', again);
+      advice = again.text.trim();
+      continue;
+    }
+    const still = ex.missing.length ? ` Still learning: ${ex.missing.slice(0, 3).join('; ')}.` : '';
+    yield { type: 'answer', text: `I am not ready to coach this yet (${d.why}).${still} The numbers above are what I measured; I will not turn them into advice until I pass the exam.` };
+    yield total(); return;
+  }
 }
 
 function withStep(e: AgentEvent, stepIndex: number): AgentEvent {

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AgentEvent, AnalyzeRequest, Landmarks, Session, ToolManifest, ToolResult } from '../contracts/types';
+import type { Exam, ExamArgs } from './agent/examiner';
 import { analyze, type LoopDeps } from './agent/loop';
 import { plan } from './agent/planner';
 import noHuman from '../data/synthetic/fixtures/noHuman.landmarks.json';
@@ -221,5 +222,64 @@ describe('analyze loop', () => {
     const rej = ev.find((e) => e.type === 'rejected');
     expect(rej && rej.type === 'rejected' ? rej.reason : null).toBe('not_a_sport');
     expect(types(ev)).not.toContain('answer');
+  });
+});
+
+describe('the examiner (second agent, rubric)', () => {
+  const exam = (scores: Partial<Exam['scores']>, flags: Partial<Pick<Exam, 'dataTooPoor' | 'highRisk'>> = {}): Exam => ({
+    identified: 'squat', confidence: 'high', novelty: 'known', evidence: ['kneeAngleMin 90'], understood: ['depth'], missing: ['bar path'],
+    scores: { identification: 5, movement: 4, technique: 4, advice: 4, safety: 5, ...scores }, dataTooPoor: false, highRisk: false, reason: 'tied to metrics', ...flags,
+  });
+  const run = async (grades: Exam[]) => {
+    const { deps, calls } = fakeDeps([poseMetrics, squatTool]);
+    const seen: ExamArgs[] = [];
+    deps.examine = async (a) => { seen.push(a); return { value: grades[Math.min(seen.length - 1, grades.length - 1)], llm: llmResp('{}') }; };
+    const ev = await collect({ sessionId: `ex-${Math.random()}`, message: 'how is my squat', input: { kind: 'landmarks', landmarks: squat as Landmarks } }, deps);
+    return { ev, calls, seen };
+  };
+  const rubric = (ev: AgentEvent[]) => ev.filter((e) => e.type === 'test_result') as Extract<AgentEvent, { type: 'test_result' }>[];
+
+  test('ready → one rubric row that passes, then the advice', async () => {
+    const { ev, seen } = await run([exam({})]);
+    const r = rubric(ev);
+    expect(r).toHaveLength(1);
+    expect(r[0].pass).toBe(true);
+    expect(r[0].summary.startsWith('rubric: sport 5 · movement 4 · technique 4 · advice 4 · safety 5 → ready')).toBe(true);
+    expect(types(ev).indexOf('test_result')).toBeLessThan(types(ev).indexOf('answer'));
+    expect(seen[0].advice).toBe('Nice squat. Keep the knees tracking over the toes.');
+    expect(seen[0].tool?.name).toBe('squat-technique');
+  });
+
+  test('continue → the coach rewrites once from the notes; ready on the second exam', async () => {
+    const { ev, calls, seen } = await run([exam({ advice: 3 }), exam({})]);
+    expect(rubric(ev).map((r) => r.pass)).toEqual([false, true]);
+    expect(seen).toHaveLength(2);
+    expect(calls.llm).toBe(1 + 2); // classify + two drafts
+    expect(ev.find((e) => e.type === 'answer')).toBeDefined();
+  });
+
+  test('continue twice → no advice, only what is still missing', async () => {
+    const { ev } = await run([exam({ technique: 2 }), exam({ technique: 2 })]);
+    const a = ev.find((e) => e.type === 'answer');
+    expect(a && a.type === 'answer' ? a.text : '').toContain('I am not ready to coach this yet');
+    expect(a && a.type === 'answer' ? a.text : '').toContain('bar path');
+    expect(a && a.type === 'answer' ? a.text : '').not.toContain('Keep the knees');
+  });
+
+  test('safety ≤2 or a high-risk activity → advice blocked, asks for more data', async () => {
+    for (const g of [exam({ safety: 2 }), exam({}, { highRisk: true })]) {
+      const { ev } = await run([g]);
+      expect(types(ev)).not.toContain('answer');
+      const rej = ev.find((e) => e.type === 'rejected');
+      expect(rej && rej.type === 'rejected' ? rej.text : '').toContain('holding my advice back');
+    }
+  });
+
+  test('the examiner fails → the advice goes out ungraded, said so', async () => {
+    const { deps } = fakeDeps([poseMetrics, squatTool]);
+    deps.examine = async () => { throw new Error('HTTP 529'); };
+    const ev = await collect({ sessionId: 'ex-fail', message: 'how is my squat', input: { kind: 'landmarks', landmarks: squat as Landmarks } }, deps);
+    expect(types(ev)).toContain('answer');
+    expect(ev.some((e) => e.type === 'thinking' && e.text.includes('ungraded'))).toBe(true);
   });
 });

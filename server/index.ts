@@ -97,10 +97,10 @@ export async function makeRealDeps(): Promise<AppDeps> {
   const load = async (p: string) => {
     try { return await import(p); } catch (e) { throw new Error(`server/index.ts: cannot load ${p} — is that task merged? (${(e as Error).message})`); }
   };
-  const [registry, validity, reuse, grow, llmMod, costMod, cacheMod, runnerMod, authMod, classifyMod, sniffMod] = await Promise.all([
+  const [registry, validity, reuse, grow, llmMod, costMod, cacheMod, runnerMod, authMod, classifyMod, sniffMod, examinerMod] = await Promise.all([
     load('./agent/registry'), load('./gate/validity'), load('./agent/reuse'), load('./agent/grow'),
     load('./agent/llm'), load('./agent/cost'), load('./agent/cache'), load('./agent/runner'), load('./agent/authority'),
-    load('./gate/classify'), load('./gate/sniff'),
+    load('./gate/classify'), load('./gate/sniff'), load('./agent/examiner'),
   ]);
   const { analyze } = await import('./agent/loop');
   const llmDeps = llmMod.makeDeps();
@@ -136,6 +136,7 @@ export async function makeRealDeps(): Promise<AppDeps> {
       }),
       runTool: (name, input) => runnerMod.runTool(name, input, { root }),
       llm: (r) => llmMod.callLlm(r, llmDeps),
+      examine: process.env.EXAMINER === '0' ? undefined : (a) => examinerMod.examine(a, llmDeps),
       checkIntent: authMod.checkIntent,
       estimateGrowUsd: (k) => costMod.estimateGrowUsd(k),
       budgetLimitUsd,

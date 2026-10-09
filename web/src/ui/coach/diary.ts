@@ -29,6 +29,7 @@ export function diaryLine(e: AgentEvent, ctx: DiaryCtx): DiaryLine | null {
         ? { tag: 'Rules', tone: 'ok', text: 'Checked: it stays inside my rules. No internet, no files, compute only.' }
         : { tag: 'Rules', tone: 'learn', text: `That draft broke my rules: ${e.text.replace(/^Authority violations: /, '').slice(0, 120)}. Nothing was written. Rewriting.` }
     case 'test_result':
+      if (e.summary.startsWith('rubric:')) return exam(e.pass, e.attempt, e.summary)
       return e.summary.startsWith('real input:') ? trial(e.pass, e.summary, ctx) : ownTests(e.pass, e.summary)
     case 'tool_installed': {
       const m = e.manifest
@@ -40,6 +41,17 @@ export function diaryLine(e: AgentEvent, ctx: DiaryCtx): DiaryLine | null {
     default:
       return null
   }
+}
+
+/** The examiner's grade: "rubric: sport 5 · … → ready | why | reason" (server/agent/examiner.ts rubricSummary). */
+function exam(pass: boolean, attempt: number, summary: string): DiaryLine {
+  const [head, why, reason] = summary.split(' | ')
+  const scores = head!.replace(/^rubric: /, '').replace(/ → \w+$/, '')
+  const decision = / → (\w+)$/.exec(head!)?.[1]
+  const detail = [scores, reason].filter(Boolean).join('. ')
+  if (pass) return { tag: 'Exam', tone: 'ok', text: `A second agent examined what I learned: ready to coach${attempt > 1 ? ' after one rewrite' : ''}.`, detail }
+  if (decision === 'block') return { tag: 'Exam', tone: 'learn', text: `A second agent examined what I learned and stopped my advice: ${why}.`, detail }
+  return { tag: 'Exam', tone: 'learn', text: `A second agent examined what I learned: not ready yet, ${why}.`, detail }
 }
 
 function ownTests(pass: boolean, summary: string): DiaryLine {

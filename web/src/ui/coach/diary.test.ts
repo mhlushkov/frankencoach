@@ -50,3 +50,14 @@ test('activityFrom reads the sport out of the growing text', () => {
   expect(activityFrom('Writing running-profile (analyzer for running)…')).toBe('running')
   expect(activityFrom('Attempt 2: fixing x from the test output…')).toBeUndefined()
 })
+
+test('exam: the second agent grade reads as ready, not ready, or stopped, with the scores as detail', () => {
+  const tr = (pass: boolean, attempt: number, summary: string): AgentEvent => ({ type: 'test_result', name: 'running-profile', attempt, pass, summary })
+  const ctx = { activity: 'running', input: 'file' as const }
+  const ok = diaryLine(tr(true, 2, 'rubric: sport 5 · movement 4 · technique 4 · advice 4 · safety 5 → ready | every dimension is 3 or higher | tied to pace'), ctx)
+  expect(ok).toEqual({ tag: 'Exam', tone: 'ok', text: 'A second agent examined what I learned: ready to coach after one rewrite.', detail: 'sport 5 · movement 4 · technique 4 · advice 4 · safety 5. tied to pace' })
+  expect(diaryLine(tr(false, 1, 'rubric: sport 5 · movement 4 · technique 2 · advice 3 · safety 4 → continue | technique below 3 | r'), ctx)?.text)
+    .toBe('A second agent examined what I learned: not ready yet, technique below 3.')
+  expect(diaryLine(tr(false, 1, 'rubric: sport 5 · movement 4 · technique 4 · advice 4 · safety 2 → block | safety and confidence boundaries scored 2 | r'), ctx)?.text)
+    .toBe('A second agent examined what I learned and stopped my advice: safety and confidence boundaries scored 2.')
+})
