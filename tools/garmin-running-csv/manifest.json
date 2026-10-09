@@ -1,0 +1,21 @@
+{
+  "name": "garmin-running-csv",
+  "kind": "parser",
+  "activity": "running",
+  "inputType": "raw:garmin-running-csv",
+  "outputType": "session",
+  "description": "Garmin-style running CSV with timestamp, elapsed_s, distance_m, speed_mps, pace_min_km, heart_rate_bpm, cadence_spm, altitude_m columns parsed into a running Session.",
+  "permissions": [
+    "compute"
+  ],
+  "createdBy": "agent",
+  "createdAt": "2026-10-09T01:55:02.958Z",
+  "model": "claude-sonnet-5-5",
+  "costUsd": 0.038831,
+  "attempts": 1,
+  "basedOn": [
+    "series-core"
+  ],
+  "uses": 0,
+  "testStatus": "pass"
+}

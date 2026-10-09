@@ -1,0 +1,21 @@
+{
+  "name": "running-profile",
+  "kind": "analyzer",
+  "activity": "running",
+  "inputType": "session",
+  "outputType": "result",
+  "description": "Analyzes a running session from speed, heart rate, cadence and elevation series: pace, speed variability, cadence, heart-rate zones and climb.",
+  "permissions": [
+    "compute"
+  ],
+  "createdBy": "agent",
+  "createdAt": "2026-10-09T02:40:31.766Z",
+  "model": "claude-sonnet-5-5",
+  "costUsd": 0.0385344,
+  "attempts": 1,
+  "basedOn": [
+    "series-core"
+  ],
+  "uses": 0,
+  "testStatus": "pass"
+}

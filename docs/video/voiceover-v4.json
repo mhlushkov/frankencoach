@@ -1,0 +1,10 @@
+[
+  {"shot": "v4-hook", "voice": "narrator", "text": "Millions train alone, and nobody tells them what went wrong. FrankenCoach watches your video, in any sport, and tells you."},
+  {"shot": "d-signup", "voice": "narrator", "text": "Sofia signs up. Two consents, because this is body data."},
+  {"shot": "d-tap", "voice": "coach", "text": "I can see two people. Tap the one I should watch."},
+  {"shot": "d-ask", "voice": "coach", "text": "I haven't learned jump rope yet. Want me to learn it?"},
+  {"shot": "d-learn", "voice": "narrator", "text": "It writes its own tool and tests. Live, the tests failed three times, so it installed nothing."},
+  {"shot": "d-answer", "voice": "coach", "text": "I couldn't build a new tool, so I'm using what I can already measure. Your knees barely bend. Land softly, with a slight bend. I see one camera in 2D, so a human coach should check your footwork."},
+  {"shot": "d-learned", "voice": "narrator", "text": "When the tests pass, it installs the tool, and every member can use it."},
+  {"shot": "v4-limits", "voice": "coach", "text": "What's real: I learn a sport, test my own tool, and get examined. Simulated: my demo clips are AI-made. Next: real gyms and a live camera. Show me any sport. I'll learn it.", "speak": "What's real: I learn a sport, test my own tool, and get examined. Simulated: my demo clips are AI-made. Next: real gyms and a live camera. Show me any sport. I'll learn it."}
+]

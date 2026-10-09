@@ -1,0 +1,112 @@
+{
+  "_doc": "v4 pitch cut with the Mr. Bean golf opener (videoplayback.mp4 1:40-1:51), music only, no SFX.",
+  "title": {
+    "duration": 0,
+    "line1": "FrankenCoach",
+    "line2": "the coach that learns any sport you show it"
+  },
+  "end": {
+    "duration": 0,
+    "line1": "github.com/mhlushkov/frankencoach",
+    "line2": ""
+  },
+  "shots": [
+    {
+      "shot": "bean-golf",
+      "file": "bean-golf.mov",
+      "start": 0,
+      "duration": 11,
+      "caption": "Training alone? Nobody tells you what went wrong",
+      "colour": "red",
+      "fade": 0
+    },
+    {
+      "shot": "v4-hook",
+      "file": "05-two-people.mov",
+      "start": 96,
+      "duration": 6,
+      "caption": "Any sport: film it, drop it",
+      "colour": "green",
+      "fade": 0.15
+    },
+    {
+      "shot": "d-signup",
+      "file": "full-flow.mov",
+      "start": 1.5,
+      "duration": 7,
+      "speed": 1.9,
+      "caption": "Sign up: two consents for body data",
+      "colour": "grey",
+      "fade": 0
+    },
+    {
+      "shot": "d-drop",
+      "file": "full-flow.mov",
+      "start": 14.5,
+      "duration": 3.5,
+      "speed": 25,
+      "caption": "AI clip of jump rope, pose read in the browser",
+      "colour": "amber",
+      "fade": 0
+    },
+    {
+      "shot": "d-tap",
+      "file": "full-flow.mov",
+      "start": 100.8,
+      "duration": 5,
+      "speed": 1.4,
+      "caption": "Two people: it asks which one",
+      "colour": "amber",
+      "fade": 0
+    },
+    {
+      "shot": "d-ask",
+      "file": "d-ask-zoom.mov",
+      "start": 0,
+      "duration": 5.5,
+      "speed": 1,
+      "caption": "\"I haven't learned jump rope yet\"",
+      "colour": "amber",
+      "fade": 0
+    },
+    {
+      "shot": "d-learn",
+      "file": "d-learn-zoom.mov",
+      "start": 0,
+      "duration": 8,
+      "speed": 1,
+      "caption": "Live: 1 of 3 tests failed, 3 times. Nothing installed",
+      "colour": "red",
+      "fade": 0
+    },
+    {
+      "shot": "d-answer",
+      "file": "d-answer-zoom.mov",
+      "start": 0,
+      "duration": 9.4,
+      "speed": 1,
+      "caption": "Examiner passed it: ready to coach",
+      "colour": "green",
+      "fade": 0
+    },
+    {
+      "shot": "d-learned",
+      "file": "03-learn.mov",
+      "start": 11,
+      "duration": 6,
+      "speed": 2.5,
+      "caption": "Running file: tests pass, tool installed",
+      "colour": "green",
+      "fade": 0.15
+    },
+    {
+      "shot": "v4-limits",
+      "file": "v4-limits.mov",
+      "start": 0,
+      "duration": 14.8,
+      "caption": "",
+      "colour": "grey",
+      "fade": 0.3
+    }
+  ]
+}

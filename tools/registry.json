@@ -30,6 +30,48 @@
       "createdAt": "2026-10-08T21:00:00.000Z",
       "uses": 0,
       "testStatus": "pass"
+    },
+    {
+      "name": "garmin-running-csv",
+      "kind": "parser",
+      "activity": "running",
+      "inputType": "raw:garmin-running-csv",
+      "outputType": "session",
+      "description": "Garmin-style running CSV with timestamp, elapsed_s, distance_m, speed_mps, pace_min_km, heart_rate_bpm, cadence_spm, altitude_m columns parsed into a running Session.",
+      "permissions": [
+        "compute"
+      ],
+      "createdBy": "agent",
+      "createdAt": "2026-10-09T01:55:02.958Z",
+      "model": "claude-sonnet-5-5",
+      "costUsd": 0.038831,
+      "attempts": 1,
+      "basedOn": [
+        "series-core"
+      ],
+      "uses": 10,
+      "testStatus": "pass"
+    },
+    {
+      "name": "running-profile",
+      "kind": "analyzer",
+      "activity": "running",
+      "inputType": "session",
+      "outputType": "result",
+      "description": "Analyzes a running session from speed, heart rate, cadence and elevation series: pace, speed variability, cadence, heart-rate zones and climb.",
+      "permissions": [
+        "compute"
+      ],
+      "createdBy": "agent",
+      "createdAt": "2026-10-09T02:40:31.766Z",
+      "model": "claude-sonnet-5-5",
+      "costUsd": 0.0385344,
+      "attempts": 1,
+      "basedOn": [
+        "series-core"
+      ],
+      "uses": 4,
+      "testStatus": "pass"
     }
   ]
 }
