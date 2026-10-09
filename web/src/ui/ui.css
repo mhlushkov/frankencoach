@@ -156,6 +156,12 @@
 .auth-steps li { display: flex; align-items: flex-start; gap: 10px; font-size: 16px; line-height: 1.35; color: var(--color-text-2); }
 .auth-steps .how-n { flex: none; }
 
+/* voice (only rendered when the server has an ElevenLabs key) */
+.voice-toggle { padding: 5px 10px; }
+.listen { display: block; margin-top: 6px; padding: 0; border: 0; background: none; cursor: pointer; font-family: var(--font-body); text-decoration: underline; text-underline-offset: 3px; }
+.listen:hover { color: var(--color-text); }
+.voice-error { padding: 0 24px 10px; }
+
 @media (max-width: 720px) {
   .topbar { height: auto; min-height: 60px; flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
   .topbar-right { flex-wrap: wrap; gap: 10px; }
@@ -171,7 +177,7 @@
   .right { border-left: 0; border-top: 1px solid var(--color-divider); min-height: 560px; }
   .how-wrap { max-height: none; padding: 16px 16px 6px; }
   .how { padding: 16px; }
-  .composer, .log, .right-head { padding-left: 16px; padding-right: 16px; }
+  .composer, .log, .right-head, .voice-error { padding-left: 16px; padding-right: 16px; }
   .sports { height: auto; padding: 10px 16px; flex-wrap: wrap; gap: 8px; }
 }
 

@@ -94,6 +94,7 @@ export const stubApi = {
     stubTools = stubTools.filter((t) => t.name !== name)
     return stubTools.length < before
   },
-  health: async () => ({ ok: true, demoMode: true, budgetLeftUsd: 9.5, toolsCount: stubTools.length, startedAt: new Date().toISOString() }),
+  health: async () => ({ ok: true, demoMode: true, budgetLeftUsd: 9.5, toolsCount: stubTools.length, startedAt: new Date().toISOString(), voice: false }),
   log: async (): Promise<unknown[]> => [],
+  speak: async (_text: string): Promise<Blob> => { throw new Error('voice is off in stub mode') },
 }

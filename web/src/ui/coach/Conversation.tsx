@@ -21,7 +21,19 @@ function Row({ tag, tone, live, pulse, dim, children }: { tag: string; tone: Ton
 }
 
 const label = (text: string, color?: string) => <div className="ev-label" style={color ? { color } : undefined}>{text}</div>
-const bubble = (text: string) => <div className="coach-bubble"><span className="bubble-tip" />{text}</div>
+/** Listen per coach line; present only when the server has a voice. */
+export interface Listen { playing: string | null; loading: string | null; onListen: (text: string) => void; onStop: () => void }
+function ListenButton({ text, listen }: { text: string; listen: Listen }) {
+  const playing = listen.playing === text
+  const loading = !playing && listen.loading === text
+  return (
+    <button type="button" className="listen muted t14" aria-label={playing ? 'Stop reading' : 'Read this aloud'}
+      onClick={() => (playing || loading ? listen.onStop() : listen.onListen(text))}>
+      {playing ? 'Stop' : loading ? '…' : 'Listen'}
+    </button>
+  )
+}
+const bubble = (text: string, listen?: Listen) => <div className="coach-bubble"><span className="bubble-tip" />{text}{listen && <ListenButton text={text} listen={listen} />}</div>
 
 const humanKey = (k: string) => { const s = k.replace(/_/g, ' ').trim(); return s.charAt(0).toUpperCase() + s.slice(1) }
 function fmt(v: number | number[]): string {
@@ -48,9 +60,10 @@ interface Props {
   onDecline: () => void
   /** Several people in the clip and none picked yet: how many. Local UI, not an AppState message. */
   askPeople?: number
+  listen?: Listen
 }
 
-export function Conversation({ state, choice, working, onLearn, onDecline, askPeople }: Props) {
+export function Conversation({ state, choice, working, onLearn, onDecline, askPeople, listen }: Props) {
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => { const el = box.current; if (el) setTimeout(() => { el.scrollTop = el.scrollHeight }, 30) }, [state.messages.length, state.events.length, choice, askPeople])
 
@@ -67,7 +80,7 @@ export function Conversation({ state, choice, working, onLearn, onDecline, askPe
   }
   past.forEach((m, i) => rows.push(m.role === 'user'
     ? <Row key={'m' + i} tag="You" tone="you"><div className="you-bubble">{m.text}</div></Row>
-    : <Row key={'m' + i} tag="Coach" tone="ok" dim>{bubble(m.text)}</Row>))
+    : <Row key={'m' + i} tag="Coach" tone="ok" dim>{bubble(m.text, listen)}</Row>))
 
   state.events.forEach((e: AgentEvent, i) => {
     const key = 'e' + i
@@ -110,7 +123,7 @@ export function Conversation({ state, choice, working, onLearn, onDecline, askPe
         if (Object.keys(e.result.metrics).length) rows.push(<Row key={key} tag="Your workout" tone="ok"><Metrics metrics={e.result.metrics} warnings={e.result.warnings} /></Row>)
         break
       case 'answer':
-        rows.push(<Row key={key} tag="Coach" tone="ok">{bubble(e.text)}</Row>)
+        rows.push(<Row key={key} tag="Coach" tone="ok">{bubble(e.text, listen)}</Row>)
         break
       case 'clarify':
         rows.push(<Row key={key} tag="Question" tone="learn">{label(e.text)}</Row>)

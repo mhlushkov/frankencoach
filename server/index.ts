@@ -1,7 +1,8 @@
 import type { AgentEvent, AnalyzeRequest, ToolManifest } from '../contracts/types';
 import authority from '../contracts/authority.json';
-import { appendLog } from './agent/log';
+import { appendLog, type LogEntry } from './agent/log';
 import type { Budget } from './agent/cost';
+import { voiceFromEnv, type Voice } from './voice';
 
 export interface AppDeps {
   analyze(req: AnalyzeRequest): AsyncGenerator<AgentEvent>;
@@ -13,6 +14,10 @@ export interface AppDeps {
   /** USD left in the most recent session budget (contracts/events.md GET /health). */
   budgetLeftUsd?: () => number;
   heartbeatMs?: number;
+  /** ElevenLabs text-to-speech; undefined = voice off (no ELEVENLABS_API_KEY). */
+  voice?: Voice;
+  /** Defaults to appendLog; tests pass a recorder so they never write log/. */
+  log?: (entry: LogEntry) => void;
 }
 
 const ORIGIN = 'http://localhost:5173';
@@ -20,6 +25,7 @@ const CORS: Record<string, string> = {
   'access-control-allow-origin': ORIGIN,
   'access-control-allow-methods': 'GET, POST, OPTIONS',
   'access-control-allow-headers': 'content-type',
+  'access-control-expose-headers': 'x-voice-cached',
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...CORS } });
@@ -30,7 +36,7 @@ export function createApp(deps: AppDeps) {
     async fetch(req: Request): Promise<Response> {
       const url = new URL(req.url);
       if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
-      if (url.pathname === '/health') return json({ ok: true, demoMode: deps.demoMode, budgetLeftUsd: deps.budgetLeftUsd?.() ?? 0, toolsCount: deps.toolsCount(), startedAt });
+      if (url.pathname === '/health') return json({ ok: true, demoMode: deps.demoMode, budgetLeftUsd: deps.budgetLeftUsd?.() ?? 0, toolsCount: deps.toolsCount(), startedAt, voice: !!deps.voice });
       if (url.pathname === '/tools' && req.method === 'GET') return json(deps.listTools());
       if (url.pathname === '/forget' && req.method === 'POST') {
         if (!deps.demoMode) return json({ error: 'forget is only available in DEMO_MODE' }, 403);
@@ -39,6 +45,18 @@ export function createApp(deps: AppDeps) {
         const ok = deps.forget(body.name);
         const cleared = deps.clearCache(body.name);
         return json({ ok, cleared });
+      }
+      if (url.pathname === '/speak' && req.method === 'POST') {
+        const body = await req.json().catch(() => ({})) as { text?: unknown };
+        if (typeof body?.text !== 'string' || !body.text.trim()) return json({ error: 'text required' }, 400);
+        if (!deps.voice) return json({ error: 'voice is off: set ELEVENLABS_API_KEY and restart the server' }, 501);
+        let out: Awaited<ReturnType<Voice['speak']>>;
+        try { out = await deps.voice.speak(body.text); } catch (e) { return json({ error: (e as Error).message }, 502); }
+        (deps.log ?? appendLog)({ ts: new Date().toISOString(), sessionId: 'server', step: 'speak', data: { chars: out.chars, cached: out.cached, head: body.text.trim().slice(0, 60) } });
+        return new Response(out.audio, {
+          status: 200,
+          headers: { 'content-type': 'audio/mpeg', 'x-voice-cached': out.cached ? '1' : '0', 'cache-control': 'no-store', ...CORS },
+        });
       }
       if (url.pathname === '/analyze' && req.method === 'POST') {
         let body: AnalyzeRequest;
@@ -93,6 +111,7 @@ export async function makeRealDeps(): Promise<AppDeps> {
   const budgets = new Map<string, Budget>();
   return {
     demoMode,
+    voice: voiceFromEnv(),
     budgetLeftUsd: () => { const last = [...budgets.values()].at(-1); return last ? last.left : budgetLimitUsd; },
     toolsCount: () => registry.list(root).length,
     listTools: () => registry.list(root),

@@ -12,6 +12,7 @@ import { Conversation, type Choice } from './Conversation'
 import { HowItWorks, useHowItWorks } from './HowItWorks'
 import { sportName } from '../lib/text'
 import { SportsFooter } from './SportsFooter'
+import { useVoice } from './useVoice'
 import { Workout, type Media, type Picker } from './Workout'
 
 const TEXT_EXT = /\.(csv|json|gpx|tcx|txt)$/i
@@ -48,6 +49,17 @@ export function CoachScreen({ user }: { user: User }) {
 
   const busy = working || !selectors.canSend(state)
   const showHow = useHowItWorks(state.messages.length)
+
+  // Voice: only when the server has an ElevenLabs key. Read-aloud preference survives reloads.
+  const voiceOn = health?.voice === true
+  const [readAloud, setReadAloud] = useState(() => { try { return localStorage.getItem('fc:voice') === '1' } catch { return false } })
+  const voice = useVoice({ enabled: readAloud, available: voiceOn, messages: state.messages })
+  function toggleReadAloud() {
+    const next = !readAloud
+    setReadAloud(next)
+    if (!next) voice.stop()
+    try { localStorage.setItem('fc:voice', next ? '1' : '0') } catch { /* private mode: keep it for this visit */ }
+  }
 
   const asking = chooserState(crowd?.people.length ?? 0, picked?.picked) === 'asking'
 
@@ -195,10 +207,13 @@ export function CoachScreen({ user }: { user: User }) {
           <div className="right-head">
             <span className="zone">YOUR COACH</span>
             <span className="live-dot" style={{ background: status.color }} />
-            <span className="muted t14">{status.live}</span>
+            <span className={voiceOn ? 'muted t14 ellipsis' : 'muted t14'}>{status.live}</span>
+            {voiceOn && <button type="button" className="btn btn-secondary t14 push nowrap voice-toggle" aria-pressed={readAloud} onClick={toggleReadAloud}>{readAloud ? 'Read aloud: on' : 'Read aloud: off'}</button>}
           </div>
           {showHow && <HowItWorks />}
-          <Conversation state={state} choice={choice} working={working} onLearn={learn} onDecline={decline} askPeople={asking ? crowd?.people.length : undefined} />
+          <Conversation state={state} choice={choice} working={working} onLearn={learn} onDecline={decline} askPeople={asking ? crowd?.people.length : undefined}
+            listen={voiceOn ? { playing: voice.playing, loading: voice.loading, onListen: (t) => { void voice.play(t) }, onStop: voice.stop } : undefined} />
+          {voiceOn && voice.error && <div className="muted t14 voice-error">{voice.error}</div>}
           <div className="composer">
             <textarea className="input" aria-label="Ask your coach" disabled={asking} placeholder="Ask your coach…" value={text} onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} />

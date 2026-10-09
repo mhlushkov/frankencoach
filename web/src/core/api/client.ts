@@ -6,7 +6,7 @@ import { stubAnalyze, stubApi } from './stub'
 const BASE = '/api'
 const STUB = import.meta.env.VITE_STUB === '1'
 
-export interface Health { ok: boolean; demoMode: boolean; budgetLeftUsd: number; toolsCount: number; startedAt: string }
+export interface Health { ok: boolean; demoMode: boolean; budgetLeftUsd: number; toolsCount: number; startedAt: string; voice: boolean }
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, init)
@@ -40,5 +40,18 @@ export const forget = (name: string): Promise<boolean> =>
       }).then((r) => r.ok !== false)
 
 export const health = (): Promise<Health> => (STUB ? stubApi.health() : json('/health'))
+
+/** The coach's line as mp3 (server → ElevenLabs, cached on disk). */
+export async function speak(text: string, signal?: AbortSignal): Promise<Blob> {
+  if (STUB) return stubApi.speak(text)
+  const res = await fetch(BASE + '/speak', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text }),
+    signal,
+  })
+  if (!res.ok) throw new Error(`/speak: HTTP ${res.status}`)
+  return res.blob()
+}
 
 export const isStub = STUB
