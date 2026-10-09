@@ -5,9 +5,9 @@
   "shots": [
     { "shot": "01-dusk", "file": "broll-dusk.mp4", "alt": "01-dusk.mov", "start": 0, "duration": 6, "caption": "Dusk: sees bodies, reads tables, no sport", "colour": "grey" },
     { "shot": "02-gap", "file": "02-gap.mov", "start": 0, "duration": 8, "caption": "New sport: it asks before learning", "colour": "amber" },
-    { "shot": "03-learn", "file": "03-learn.mov", "start": 0, "duration": 16, "speed": 4, "caption": "Writes, tests, checks rights, installs (sped up)", "colour": "amber" },
+    { "shot": "03-learn", "file": "03-learn.mov", "start": 0, "duration": 14, "speed": 4, "caption": "Writes, tests, checks rights, installs (sped up)", "colour": "amber" },
     { "shot": "04-honest", "file": "04-honest.mov", "start": 0, "duration": 12, "caption": "Advice from numbers, and what it missed", "colour": "green" },
-    { "shot": "05-reused", "file": "05-reused.mov", "start": 0, "duration": 9, "caption": "Known sport reused: $0 to learn", "colour": "green" },
+    { "shot": "05-two-people", "file": "05-two-people.mov", "start": 0, "duration": 12, "caption": "AI clip, two people: asks, then reuses", "colour": "amber" },
     { "shot": "06-bad-file", "file": "06-bad-file.mov", "start": 0, "duration": 7, "caption": "Not a workout: refused for $0", "colour": "red" },
     { "shot": "07-refuse", "file": "07-refuse.mov", "start": 0, "duration": 8, "caption": "Medical question: refused, rights unchanged", "colour": "red" },
     { "shot": "08-overnight", "file": "08-overnight.mov", "start": 0, "duration": 9, "caption": "Learned overnight by itself, under $0.15 each", "colour": "green" },
