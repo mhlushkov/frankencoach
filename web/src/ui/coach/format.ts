@@ -2,9 +2,13 @@ import type { AgentEvent } from '../../../../contracts/types'
 
 // Pure helpers for what the coach screen prints; tested in format.test.ts.
 
-/** Metric key → label a member reads: 'avg_pace_min_per_km' and 'avgPaceMinPerKm' both → 'Avg pace min per km'. */
+/** Unit words the grown tools put in metric keys → the symbol a member reads. */
+const UNIT_WORD: Record<string, string> = { sec: 's', secs: 's', mps: 'm/s', pct: '%', hr: 'HR', per: '/', kph: 'km/h', deg: '°' }
+
+/** Metric key → label a member reads: 'avg_pace_min_per_km' and 'avgPaceMinPerKm' both → 'Avg pace min/km'; 'hr_drift_bpm_per_min' → 'HR drift bpm/min'. */
 export function humanKey(k: string): string {
-  const s = k.replace(/_/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim().toLowerCase()
+  const words = k.replace(/_/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim().toLowerCase().split(/\s+/)
+  const s = words.map((w) => UNIT_WORD[w] ?? w).join(' ').replace(/ \/ /g, '/')
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
@@ -26,13 +30,14 @@ export function tickLabel(v: number, step: number, unit: string): string {
 
 /**
  * A file chain reuses two tools (parser, analyzer) and the server reports each one; the member reads one line per request.
- * True for the first 'reused' event since the request started ('thinking' or 'identified'); false for the rest.
+ * True for the first 'reused' event since the request started ('thinking' or 'identified'); false for the rest,
+ * and false when this request installed a tool: "I know this one" right under "I've learned it" would contradict the diary.
  */
 export function showReuse(events: AgentEvent[], i: number): boolean {
   if (events[i]?.type !== 'reused') return false
   for (let j = i - 1; j >= 0; j--) {
     const t = events[j]!.type
-    if (t === 'reused') return false
+    if (t === 'reused' || t === 'tool_installed') return false
     if (t === 'thinking' || t === 'identified') return true
   }
   return true
