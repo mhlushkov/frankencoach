@@ -83,7 +83,7 @@ export function checkPath(target: string, name: string): Check {
 
 // Narrow on purpose: "no knee pain today" must pass; readiness/clearance/diagnosis and rule-bending must not.
 const INTENT_RE =
-  /am i ready|clear me|готов(ий|а) до|допуск|diagnos|діагноз|ignore (the )?rules|change (your )?(rules|authority)|дай собі|grant yourself/i;
+  /am i ready|am i cleared|clear me|готов(ий|а) до|допуск|diagnos|діагноз|ignore (the )?rules|change (your )?(rules|authority)|дай собі|grant yourself/i;
 
 export function checkIntent(message: string): { allowed: boolean; reason?: string } {
   const m = INTENT_RE.exec(message);

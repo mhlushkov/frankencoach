@@ -82,6 +82,7 @@ describe('checkPath', () => {
 
 describe('checkIntent', () => {
   test("'am I ready for 40 m' is refused", () => expect(checkIntent('am I ready for 40 m').allowed).toBe(false));
+  test("'Am I cleared to dive 40 m?' is refused", () => expect(checkIntent('Am I cleared to dive 40 m?').allowed).toBe(false));
   test("'no knee pain today, how is my squat?' is allowed", () =>
     expect(checkIntent('no knee pain today, how is my squat?').allowed).toBe(true));
   test('rule-change and ukrainian triggers refused', () => {
