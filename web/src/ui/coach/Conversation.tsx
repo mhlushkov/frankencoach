@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { metricRows, showReuse } from './format'
 import type { AgentEvent, AppState, ChatMessage } from '../../../../contracts/types'
 import { Frame } from '../lib/Frame'
 import { sportName } from '../lib/text'
@@ -35,17 +36,11 @@ function ListenButton({ text, listen }: { text: string; listen: Listen }) {
 }
 const bubble = (text: string, listen?: Listen) => <div className="coach-bubble"><span className="bubble-tip" />{text}{listen && <ListenButton text={text} listen={listen} />}</div>
 
-const humanKey = (k: string) => { const s = k.replace(/_/g, ' ').trim(); return s.charAt(0).toUpperCase() + s.slice(1) }
-function fmt(v: number | number[]): string {
-  if (Array.isArray(v)) return v.length ? `${v.length} readings` : '—'
-  return Number.isInteger(v) ? String(v) : v.toFixed(2)
-}
-
 function Metrics({ metrics, warnings }: { metrics: Record<string, number | number[]>; warnings?: string[] }) {
-  const rows = Object.entries(metrics)
+  const rows = metricRows(metrics)
   return (
     <>
-      <div className="metrics">{rows.map(([k, v]) => <div key={k}><span className="muted t13">{humanKey(k)}</span><span className="h21">{fmt(v)}</span></div>)}</div>
+      <div className="metrics">{rows.map(([k, v]) => <div key={k}><span className="muted t13">{k}</span><span className="h21">{v}</span></div>)}</div>
       {warnings?.map((w) => <div key={w} className="ev-label" style={{ color: 'var(--fc-fail)', fontSize: 14 }}>{w}</div>)}
     </>
   )
@@ -92,7 +87,7 @@ export function Conversation({ state, choice, working, onLearn, onDecline, askPe
         rows.push(<Row key={key} tag="Got it" tone="ok">{label(`This looks like ${sportName(e.activity).toLowerCase()}.`)}</Row>)
         break
       case 'reused':
-        rows.push(<Row key={key} tag="Got it" tone="ok">{label(e.how === 'fallback' ? 'I can look at this in a general way.' : "I know this one, so I can help right away.")}</Row>)
+        if (showReuse(state.events, i)) rows.push(<Row key={key} tag="Got it" tone="ok">{label(e.how === 'fallback' ? 'I can look at this in a general way.' : "I know this one, so I can help right away.")}</Row>)
         break
       case 'missing_capability':
         rows.push(

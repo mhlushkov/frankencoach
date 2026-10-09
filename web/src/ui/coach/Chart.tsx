@@ -1,4 +1,5 @@
 import type { Series } from '../../../../contracts/types'
+import { tickLabel } from './format'
 
 const NAMES: Record<string, string> = {
   depth_m: 'how deep you went', heart_rate_bpm: 'your heart rate', speed_mps: 'your speed',
@@ -35,7 +36,7 @@ export function Chart({ series }: { series: Record<string, Series> }) {
   const ticks = [0, 1, 2, 3].map((i) => {
     const f = i / 3
     const v = main === 'depth_m' ? lo + f * (hi - lo) : hi - f * (hi - lo)
-    return { y: Y0 + f * (Y1 - Y0), label: `${Math.round(v)} ${UNIT_LABEL(series[main]!.unit, main)}`.trim() }
+    return { y: Y0 + f * (Y1 - Y0), label: tickLabel(v, (hi - lo) / 3, UNIT_LABEL(series[main]!.unit, main)) }
   })
   const xt = [0, 0.25, 0.5, 0.75, 1].map((f) => ({ x: sx(f * tMax), label: clock(f * tMax) }))
 
